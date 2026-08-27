@@ -1,0 +1,205 @@
+import type { Category, Collection } from '../types';
+
+export const COLLECTIONS: Collection[] = [
+  {
+    slug: 'special-combo-bouquets',
+    name: 'Special Combo Bouquets',
+    tagline: 'Hand-tied bouquet arrangements & gift sets',
+    image: '/images/categories/special-combo-bouquets.jpg',
+  },
+  {
+    slug: 'jumbo-flower-bouquets',
+    name: 'Jumbo Flower Bouquets',
+    tagline: 'Grand floral statements that never wilt',
+    image: '/images/categories/jumbo-flower-bouquets.jpg',
+  },
+  {
+    slug: 'single-flowers',
+    name: 'Single Crochet Flowers',
+    tagline: 'Everlasting individual bloom stems',
+    image: '/images/categories/single-flowers.jpg',
+  },
+  {
+    slug: 'plushies',
+    name: 'Plushies & Toys',
+    tagline: 'Soft, cute handmade plush companions',
+    image: '/images/categories/plushies.jpg',
+  },
+  {
+    slug: 'resin-frames',
+    name: 'Resin Memory Frames',
+    tagline: 'Preserved floral & photo keepsakes',
+    image: '/images/categories/resin-frames.jpg',
+  },
+  {
+    slug: 'event-specific',
+    name: 'Event & Occasion Specials',
+    tagline: 'Memorable birthday & milestone gifts',
+    image: '/images/categories/event-specific.jpg',
+  },
+  {
+    slug: 'characters',
+    name: 'Character Amigurumi',
+    tagline: 'Hand-stitched character plushies',
+    image: '/images/categories/characters.jpg',
+  },
+  {
+    slug: 'keychains-charms',
+    name: 'Keychains & Charms',
+    tagline: 'Tiny details & everyday bag charms',
+    image: '/images/categories/keychains.jpg',
+  },
+  {
+    slug: 'hair-accessories',
+    name: 'Hair Accessories',
+    tagline: 'Charming, handmade clips & hair ties',
+    image: '/images/categories/hair-accessories.jpg',
+  },
+  {
+    slug: 'flower-pots',
+    name: 'Potted Flower Displays',
+    tagline: 'Cute crochet plants & desk decor',
+    image: '/images/categories/flower-pots.jpg',
+  },
+  {
+    slug: 'customised-gifts',
+    name: 'Customised Gifts',
+    tagline: 'Bespoke handmade memory keepsakes',
+    image: '/images/categories/customised-gifts.jpg',
+  },
+  {
+    slug: 'macrame-bag',
+    name: 'Pouches & Macrame Bags',
+    tagline: 'Handwoven totes, pouches & cases',
+    image: '/images/categories/macrame-bag.jpg',
+  },
+];
+
+export const CATEGORIES: Category[] = [
+  {
+    slug: 'jumbo-flower-bouquets',
+    name: 'Jumbo Flower Bouquets',
+    collection: 'jumbo-flower-bouquets',
+    image: '/images/categories/jumbo-flower-bouquets.jpg',
+  },
+  {
+    slug: 'single-flowers',
+    name: 'Single Crochet Flowers',
+    collection: 'single-flowers',
+    image: '/images/categories/single-flowers.jpg',
+  },
+  {
+    slug: 'special-combo-bouquets',
+    name: 'Combo Bouquets',
+    collection: 'special-combo-bouquets',
+    image: '/images/categories/special-combo-bouquets.jpg',
+  },
+  {
+    slug: 'flower-pots',
+    name: 'Potted Flower Arrangements',
+    collection: 'flower-pots',
+    image: '/images/categories/flower-pots.jpg',
+  },
+  {
+    slug: 'characters',
+    name: 'Character Amigurumi',
+    collection: 'characters',
+    image: '/images/categories/characters.jpg',
+  },
+  {
+    slug: 'mini-toys',
+    name: 'Mini Toys',
+    collection: 'plushies',
+    image: '/images/categories/mini-toys.jpg',
+  },
+  {
+    slug: 'kids-toys-jumbo',
+    name: 'Jumbo Kids Toys',
+    collection: 'plushies',
+    image: '/images/categories/kids-toys-jumbo.jpg',
+  },
+  {
+    slug: 'plushies',
+    name: 'Plushies',
+    collection: 'plushies',
+    image: '/images/categories/plushies.jpg',
+  },
+  {
+    slug: 'keychains',
+    name: 'Crochet Keychains',
+    collection: 'keychains-charms',
+    image: '/images/categories/keychains.jpg',
+  },
+  {
+    slug: 'charms',
+    name: 'Crochet Charms',
+    collection: 'keychains-charms',
+    image: '/images/categories/charms.jpg',
+  },
+  {
+    slug: 'crochet-magnets',
+    name: 'Crochet Fridge Magnets',
+    collection: 'keychains-charms',
+    image: '/images/categories/crochet-magnets.jpg',
+  },
+  {
+    slug: 'hair-accessories',
+    name: 'Hair Accessories',
+    collection: 'hair-accessories',
+    image: '/images/categories/hair-accessories.jpg',
+  },
+  {
+    slug: 'resin-frames',
+    name: 'Resin Photo Frames',
+    collection: 'resin-frames',
+    image: '/images/categories/resin-frames.jpg',
+  },
+  {
+    slug: 'string-arts',
+    name: 'String Art',
+    collection: 'resin-frames',
+    image: '/images/categories/string-arts.jpg',
+  },
+  {
+    slug: 'pouchcase',
+    name: 'Pouches & Cases',
+    collection: 'macrame-bag',
+    image: '/images/categories/pouchcase.jpg',
+  },
+  {
+    slug: 'macrame-bag',
+    name: 'Macrame Bags',
+    collection: 'macrame-bag',
+    image: '/images/categories/macrame-bag.jpg',
+  },
+  {
+    slug: 'customised-gifts',
+    name: 'Customised Gifts',
+    collection: 'customised-gifts',
+    image: '/images/categories/customised-gifts.jpg',
+  },
+  {
+    slug: 'event-specific',
+    name: 'Event & Occasion Specials',
+    collection: 'event-specific',
+    image: '/images/categories/event-specific.jpg',
+  },
+  {
+    slug: 'return-gifts',
+    name: 'Return Gift Sets',
+    collection: 'customised-gifts',
+    image: '/images/categories/return-gifts.jpg',
+  },
+  {
+    slug: 'add-ons',
+    name: 'Add-Ons & Extras',
+    collection: 'customised-gifts',
+    image: '/images/categories/add-ons.jpg',
+  },
+  {
+    slug: 'beads',
+    name: 'Beaded Details',
+    collection: 'customised-gifts',
+    image: '/images/categories/beads.jpg',
+  },
+];

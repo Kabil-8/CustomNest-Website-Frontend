@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 450ms;
+  --ease-custom: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream text-charcoal font-body antialiased;
+    font-feature-settings: 'ss01' 1;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-charcoal;
+  }
+  ::selection {
+    background: #F3D2CB;
+    color: #5B2A24;
+  }
+  :focus-visible {
+    outline: 2px solid #A24E42;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .container-nest {
+    @apply mx-auto w-full max-w-[1280px] px-5 sm:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.95rem] font-semibold transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-rose-500 text-white shadow-soft hover:bg-rose-600 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply btn bg-transparent text-rose-600 border border-rose-300 hover:bg-rose-50 active:scale-[0.98];
+  }
+  .btn-tertiary {
+    @apply inline-flex items-center gap-1.5 text-rose-600 font-semibold hover:text-rose-700 transition-colors;
+  }
+  .btn-dark {
+    @apply btn bg-charcoal text-cream hover:bg-charcoal/90 active:scale-[0.98];
+  }
+  .card {
+    @apply bg-white border border-line rounded-2xl shadow-soft;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-4 py-3 text-[0.95rem] text-charcoal placeholder:text-muted/70 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-colors outline-none;
+  }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-600;
+  }
+  .section {
+    @apply py-16 sm:py-24;
+  }
+  .skeleton {
+    @apply bg-sand relative overflow-hidden;
+    background-image: linear-gradient(90deg, #F2E9DF 0px, #FBEAE6 40px, #F2E9DF 80px);
+    background-size: 600px 100%;
+  }
+
+  /* Handmade signature thread motif line */
+  .thread-line {
+    @apply relative flex items-center justify-center my-6;
+  }
+  .thread-line::before,
+  .thread-line::after {
+    content: '';
+    @apply flex-1 border-b border-dashed border-rose-300/60;
+  }
+}
+
