@@ -249,7 +249,7 @@ export const orders = {
 // ── Custom Orders ─────────────────────────────────────────────────────────────
 
 export const customOrders = {
-  async submit(input: Omit<CustomOrderRequest, 'id' | 'status' | 'createdAt' | 'adminReply' | 'repliedAt'>): Promise<CustomOrderRequest> {
+  async submit(input: Omit<CustomOrderRequest, 'id' | 'status' | 'createdAt' | 'adminReply' | 'repliedAt' | 'messages'>): Promise<CustomOrderRequest> {
     const data = await req<{ request: CustomOrderRequest }>('/custom-orders', {
       method: 'POST',
       body: JSON.stringify(input),

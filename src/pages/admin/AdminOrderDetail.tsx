@@ -18,7 +18,9 @@ export default function AdminOrderDetail() {
 
   useEffect(() => {
     if (!orderId) return;
-    ordersApi.getById(orderId).then(setOrder);
+    ordersApi.getById(orderId).then((data) => {
+      setOrder(data?.order ?? null);
+    });
   }, [orderId]);
 
   const updateStatus = async (status: OrderStatus) => {
