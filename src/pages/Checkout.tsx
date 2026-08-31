@@ -304,9 +304,9 @@ export default function Checkout() {
               <h3 className="font-display text-xl mb-2">Scan & Pay</h3>
               <p className="text-sm text-muted mb-4">Scan the QR code with any UPI app to pay {formatPrice(total)}</p>
               <div className="bg-white p-4 rounded-2xl border border-line inline-block mb-4">
-                <img src="/images/upi-qr-code.jpg" alt="UPI QR Code" className="w-48 h-48 object-contain" />
+                <img src="/images/upi.jpeg" alt="UPI QR Code" className="w-48 h-48 object-contain" />
               </div>
-              
+
               {/* Screenshot Upload */}
               <div className="mb-4">
                 <p className="text-xs text-muted mb-2">Upload payment screenshot after paying</p>
@@ -321,8 +321,8 @@ export default function Checkout() {
                       <span className="text-sm text-muted">Click to upload screenshot</span>
                     </>
                   )}
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     accept="image/*"
                     className="hidden"
                     onChange={(e) => {
@@ -332,12 +332,12 @@ export default function Checkout() {
                   />
                 </label>
               </div>
-              
+
               <div className="flex gap-3">
                 <button onClick={() => { setShowUpiQr(false); setPlacing(false); setPaymentScreenshot(null); }} className="btn-secondary flex-1">
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={async () => {
                     if (!paymentScreenshot || !pendingOrderId) {
                       show('Please upload payment screenshot first', 'error');
@@ -348,7 +348,7 @@ export default function Checkout() {
                       // Upload screenshot to backend
                       const formData = new FormData();
                       formData.append('paymentScreenshot', paymentScreenshot);
-                      
+
                       const token = localStorage.getItem('tcn_token');
                       const uploadRes = await fetch(`http://localhost:5000/api/orders/${pendingOrderId}/upload-screenshot`, {
                         method: 'POST',
@@ -356,11 +356,11 @@ export default function Checkout() {
                         body: formData,
                         credentials: 'include',
                       });
-                      
+
                       if (!uploadRes.ok) {
                         throw new Error('Failed to upload screenshot');
                       }
-                      
+
                       clear();
                       setShowUpiQr(false);
                       setPendingOrderId(null);
@@ -372,7 +372,7 @@ export default function Checkout() {
                     } finally {
                       setUploadingScreenshot(false);
                     }
-                  }} 
+                  }}
                   disabled={!paymentScreenshot || uploadingScreenshot}
                   className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
