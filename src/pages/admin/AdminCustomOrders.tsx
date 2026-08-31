@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { customOrders as customOrderApi } from '../../lib/api';
 import type { CustomOrderRequest } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { Skeleton } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
-import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2 } from 'lucide-react';
+import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save } from 'lucide-react';
 
 const STATUSES: CustomOrderRequest['status'][] = [
   'New', 'In Review', 'Quoted', 'Accepted', 'Declined',
@@ -30,16 +30,66 @@ function ChatThread({ request, onUpdated }: {
     request.agreedPrice != null ? String(request.agreedPrice) : ''
   );
   const [sending, setSending] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Keep local status in sync when parent updates (e.g. after send)
-  useEffect(() => { setStatus(request.status); }, [request.status]);
+  // Keep local status in sync when parent updates
+  useEffect(() => { 
+    setStatus(request.status); 
+    if (request.agreedPrice != null) {
+      setAgreedPrice(String(request.agreedPrice));
+    }
+  }, [request.status, request.agreedPrice]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [request.messages?.length]);
 
   const isAccepting = status === 'Accepted';
+  const isQuoting = status === 'Quoted';
 
+  // ── Instant Status Click Handler ──
+  async function handleStatusClick(nextStatus: CustomOrderRequest['status']) {
+    setStatus(nextStatus);
+    
+    // For Accepted / Quoted, keep the price input open so admin can input price
+    if (nextStatus === 'Accepted' || nextStatus === 'Quoted') {
+      return;
+    }
+
+    // Direct status update for New, In Review, Declined
+    setUpdatingStatus(true);
+    try {
+      const updated = await customOrderApi.updateStatus(request.id, nextStatus);
+      onUpdated(updated);
+      show(`Status updated to "${nextStatus}" ✓`, 'success');
+    } catch {
+      show(`Failed to update status to "${nextStatus}"`, 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  // ── Save Price & Status Directly ──
+  async function handleSavePriceAndStatus() {
+    if (status === 'Accepted' && (!agreedPrice || isNaN(Number(agreedPrice)) || Number(agreedPrice) <= 0)) {
+      show('Please enter the agreed price before accepting.', 'error');
+      return;
+    }
+    setUpdatingStatus(true);
+    try {
+      const priceVal = agreedPrice && !isNaN(Number(agreedPrice)) ? Number(agreedPrice) : undefined;
+      const updated = await customOrderApi.updateStatus(request.id, status, priceVal);
+      onUpdated(updated);
+      show(`Status updated to "${status}" ${priceVal ? `(Rs.${priceVal.toLocaleString('en-IN')})` : ''} ✓`, 'success');
+    } catch {
+      show('Failed to update status and price', 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  // ── Send message (optionally updating status too) ──
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!text.trim()) return;
@@ -53,7 +103,7 @@ function ChatThread({ request, onUpdated }: {
         request.id,
         text.trim(),
         status !== request.status ? status : undefined,
-        isAccepting && agreedPrice ? Number(agreedPrice) : undefined,
+        (isAccepting || isQuoting) && agreedPrice ? Number(agreedPrice) : undefined,
       );
       onUpdated(updated);
       setText('');
@@ -108,7 +158,7 @@ function ChatThread({ request, onUpdated }: {
       )}
 
       {/* compose */}
-      <form onSubmit={handleSend} className="space-y-2 pt-2 border-t border-line">
+      <form onSubmit={handleSend} className="space-y-2.5 pt-2 border-t border-line">
         {/* status pills */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[0.65rem] font-semibold text-muted uppercase tracking-wider shrink-0">
@@ -118,24 +168,26 @@ function ChatThread({ request, onUpdated }: {
             <button
               key={s}
               type="button"
-              onClick={() => setStatus(s)}
-              className={`px-3 py-1 rounded-full text-[0.65rem] font-semibold border transition-all ${
+              disabled={updatingStatus}
+              onClick={() => handleStatusClick(s)}
+              className={`px-3 py-1 rounded-full text-[0.65rem] font-semibold border transition-all cursor-pointer ${
                 status === s
-                  ? STATUS_TONE[s] + ' shadow-sm'
-                  : 'border-line text-muted hover:border-rose-300 hover:text-rose-600'
+                  ? STATUS_TONE[s] + ' shadow-sm font-bold scale-105'
+                  : 'border-line text-muted hover:border-rose-300 hover:text-rose-600 bg-white'
               }`}
             >
               {s}
             </button>
           ))}
+          {updatingStatus && <Loader2 size={13} className="animate-spin text-rose-500 ml-1" />}
         </div>
 
-        {/* agreed price — only shown when Accepted is selected */}
-        {isAccepting && (
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+        {/* agreed / quoted price input */}
+        {(isAccepting || isQuoting) && (
+          <div className="flex items-center gap-2 bg-emerald-50/80 border border-emerald-200 rounded-2xl px-4 py-2.5">
             <IndianRupee size={15} className="text-emerald-600 shrink-0" />
-            <label className="text-xs font-semibold text-emerald-700 shrink-0">
-              Agreed Price (Rs.):
+            <label className="text-xs font-semibold text-emerald-800 shrink-0">
+              {isAccepting ? 'Agreed Price (₹):' : 'Quoted Price (₹):'}
             </label>
             <input
               type="number"
@@ -146,6 +198,15 @@ function ChatThread({ request, onUpdated }: {
               placeholder="e.g. 2000"
               className="flex-1 border border-emerald-300 rounded-xl px-3 py-1.5 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white"
             />
+            <button
+              type="button"
+              onClick={handleSavePriceAndStatus}
+              disabled={updatingStatus}
+              className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-soft"
+            >
+              <Save size={13} />
+              <span>Save Status</span>
+            </button>
           </div>
         )}
 
@@ -167,7 +228,7 @@ function ChatThread({ request, onUpdated }: {
           <button
             type="submit"
             disabled={sending || !text.trim()}
-            className="self-end w-10 h-10 rounded-2xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white flex items-center justify-center transition shrink-0"
+            className="self-end w-10 h-10 rounded-2xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white flex items-center justify-center transition shrink-0 cursor-pointer"
             aria-label="Send"
           >
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -221,7 +282,7 @@ export default function AdminCustomOrders() {
               >
                 {/* header */}
                 <button
-                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left"
+                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer"
                   onClick={() => toggle(r.id)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -264,8 +325,19 @@ export default function AdminCustomOrders() {
                     <div className="grid sm:grid-cols-2 gap-2 text-sm bg-cream/40 rounded-2xl px-4 py-3 border border-line/60">
                       <p><span className="text-muted">Email:</span> {r.email}</p>
                       <p><span className="text-muted">Phone:</span> {r.phone}</p>
-                      {r.colors   && <p><span className="text-muted">Colors:</span> {r.colors}</p>}
-                      {r.size     && <p><span className="text-muted">Size:</span> {r.size}</p>}
+                      {r.colors   && <p><span className="text-muted">Color:</span> {r.colors}</p>}
+                      {r.yarnType && (r.yarnType as string) !== 'either' && (r.yarnType as string) !== '' && (
+                        <p>
+                          <span className="text-muted">Yarn Type:</span>{' '}
+                          <span className="capitalize font-semibold text-rose-600">
+                            {r.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn'}
+                          </span>
+                        </p>
+                      )}
+                      {(r.yarnType as string) === 'either' && (
+                        <p><span className="text-muted">Yarn Type:</span> <span className="text-muted italic">No preference</span></p>
+                      )}
+                      {r.size     && <p><span className="text-muted">Size:</span> <span className="font-semibold">{r.size}</span></p>}
                       {r.budget   && <p><span className="text-muted">Budget:</span> {r.budget}</p>}
                       {r.deadline && <p><span className="text-muted">Deadline:</span> {r.deadline}</p>}
                       <p className="sm:col-span-2 text-charcoal/80 leading-relaxed">

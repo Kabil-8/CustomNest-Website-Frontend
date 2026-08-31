@@ -17,7 +17,7 @@ export function Footer() {
               Made by hand, made for you.
             </p>
             <div className="flex items-center gap-3 mt-5">
-              <a href="#" aria-label="TheCustomNest on Instagram" className="w-9 h-9 rounded-full bg-white border border-line flex items-center justify-center hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-colors">
+              <a href="https://www.instagram.com/the_customnest_/" target="_blank" rel="noopener noreferrer" aria-label="TheCustomNest on Instagram" className="w-9 h-9 rounded-full bg-white border border-line flex items-center justify-center hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-colors">
                 <InstagramIcon size={16} />
               </a>
               <a href="#" aria-label="TheCustomNest on Facebook" className="w-9 h-9 rounded-full bg-white border border-line flex items-center justify-center hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-colors">

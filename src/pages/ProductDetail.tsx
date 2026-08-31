@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Heart, ShoppingBag, Truck, ShieldCheck, RefreshCw, Sparkles, Check, ArrowLeft, Loader2, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { Star, Heart, ShoppingBag, Truck, ShieldCheck, RefreshCw, Sparkles, Check, ArrowLeft, Loader2, ChevronLeft, ChevronRight, Layers, Ruler, Send } from 'lucide-react';
 import { useProduct } from '../hooks/useProduct';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuthGate } from '../context/AuthGateContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { ProductCard } from '../components/ProductCard';
 import { BlurText } from '../components/reactbits/BlurText';
+import { reviews as reviewsApi, type ApiReview } from '../lib/api';
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -19,22 +21,85 @@ export default function ProductDetail() {
   const { show } = useToast();
 
   const { product, related, loading, error } = useProduct(slug);
+  const { user } = useAuth();
 
   const [activeImage, setActiveImage]     = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize]   = useState('');
   const [customText, setCustomText]       = useState('');
   const [quantity, setQuantity]           = useState(1);
   const [activeTab, setActiveTab]         = useState<'desc' | 'materials' | 'care' | 'reviews'>('desc');
+
+  // ── Reviews state ─────────────────────────────────────────────────────────
+  const [productReviews, setProductReviews] = useState<ApiReview[]>([]);
+  const [reviewsLoaded, setReviewsLoaded]   = useState(false);
+  const [myRating, setMyRating]             = useState(0);
+  const [myRatingHover, setMyRatingHover]   = useState(0);
+  const [myComment, setMyComment]           = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Sync active image when product loads
   useEffect(() => {
     if (product) setActiveImage(product.image);
   }, [product]);
 
+  // Reset selections when product changes
+  useEffect(() => {
+    setSelectedColor('');
+    setSelectedSize('');
+  }, [product?.id]);
+
+  // Load reviews when Reviews tab is opened
+  const loadReviews = useCallback(async () => {
+    if (!product?.id || reviewsLoaded) return;
+    try {
+      const data = await reviewsApi.listForProduct(product.id);
+      setProductReviews(data);
+      setReviewsLoaded(true);
+    } catch { /* silently ignore */ }
+  }, [product?.id, reviewsLoaded]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') loadReviews();
+  }, [activeTab, loadReviews]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product || !user) return;
+    if (myRating === 0) { show('Please select a star rating.', 'error'); return; }
+    if (!myComment.trim()) { show('Please write a comment.', 'error'); return; }
+    setSubmittingReview(true);
+    try {
+      const newReview = await reviewsApi.submit(product.id, myRating, myComment);
+      const updatedReviews = [newReview, ...productReviews.filter(r => r._id !== newReview._id)];
+      setProductReviews(updatedReviews);
+      setReviewsLoaded(true);
+      
+      // Update local product review count & avg rating
+      const avg = updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length;
+      product.reviewCount = updatedReviews.length;
+      product.rating = Math.round(avg * 10) / 10;
+
+      setMyRating(0);
+      setMyComment('');
+      show('Review submitted! Thank you ⭐', 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to submit review.', 'error');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   const wished = product ? isWishlisted(product.id) : false;
   const galleryImages = product?.images && product.images.length > 0 ? product.images : (product ? [product.image] : []);
   const activeIndex = galleryImages.indexOf(activeImage);
   const currentIdx = activeIndex >= 0 ? activeIndex : 0;
+
+  // Compute effective price (base + size modifier)
+  const selectedSizeObj = product?.sizes?.find(s => s.label === selectedSize);
+  const effectivePrice = product
+    ? product.price + (selectedSizeObj?.priceModifier ?? 0)
+    : 0;
 
   const handlePrevGallery = () => {
     if (galleryImages.length <= 1) return;
@@ -51,10 +116,15 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     if (!product) return;
     requireAuth(() => {
-      addItem(product, quantity, {
-        color: selectedColor || undefined,
-        text:  customText   || undefined,
-      });
+      addItem(
+        { ...product, price: effectivePrice },
+        quantity,
+        {
+          color: selectedColor || undefined,
+          size:  selectedSize  || undefined,
+          text:  customText   || undefined,
+        }
+      );
       show(`Added ${product.name} to your cart! 🧶`, 'success');
       openDrawer();
     }, `Sign in or create an account to add ${product.name} to your cart.`);
@@ -63,10 +133,15 @@ export default function ProductDetail() {
   const handleBuyNow = () => {
     if (!product) return;
     requireAuth(() => {
-      addItem(product, quantity, {
-        color: selectedColor || undefined,
-        text:  customText   || undefined,
-      });
+      addItem(
+        { ...product, price: effectivePrice },
+        quantity,
+        {
+          color: selectedColor || undefined,
+          size:  selectedSize  || undefined,
+          text:  customText   || undefined,
+        }
+      );
       navigate('/checkout');
     }, `Sign in to buy ${product.name}.`);
   };
@@ -108,6 +183,10 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  const hasColors = product.availableColors && product.availableColors.length > 0;
+  const hasSizes  = product.sizes && product.sizes.length > 0;
+  const hasCustomization = product.customization && (hasColors || hasSizes || product.customization.textAllowed);
 
   return (
     <div className="py-8 sm:py-12 min-h-screen">
@@ -201,21 +280,49 @@ export default function ProductDetail() {
               />
 
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center text-amber-500 text-sm font-bold">
-                  <Star size={16} className="fill-amber-400 text-amber-400 mr-1" />
-                  <span>{product.rating}</span>
-                  <span className="text-muted text-xs font-normal ml-1">({product.reviewCount} customer reviews)</span>
-                </div>
+                {product.reviewCount > 0 ? (
+                  <div className="flex items-center text-amber-500 text-sm font-bold">
+                    <Star size={16} className="fill-amber-400 text-amber-400 mr-1" />
+                    <span>{product.rating}</span>
+                    <span className="text-muted text-xs font-normal ml-1">
+                      ({product.reviewCount} {product.reviewCount === 1 ? 'customer review' : 'customer reviews'})
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center text-xs text-muted">
+                    <Star size={14} className="text-gray-300 mr-1" />
+                    <span>No reviews yet &middot;</span>
+                    <button
+                      onClick={() => setActiveTab('reviews')}
+                      className="text-rose-600 font-semibold ml-1 hover:underline cursor-pointer"
+                    >
+                      Be the first to review
+                    </button>
+                  </div>
+                )}
                 <span className="text-line">|</span>
                 <span className={`text-xs font-semibold ${product.stock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {product.stock > 0 ? 'In Stock — Ready to ship' : 'Out of Stock'}
                 </span>
               </div>
 
+              {/* Dynamic price display */}
               <div className="flex items-baseline gap-3 mb-4">
-                <span className="font-display text-3xl text-rose-600">₹{product.price}</span>
+                <motion.span
+                  key={effectivePrice}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="font-display text-3xl text-rose-600"
+                >
+                  ₹{effectivePrice}
+                </motion.span>
                 {product.originalPrice && (
                   <span className="text-base text-muted line-through">₹{product.originalPrice}</span>
+                )}
+                {selectedSizeObj && selectedSizeObj.priceModifier > 0 && (
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+                    +₹{selectedSizeObj.priceModifier} for {selectedSizeObj.label}
+                  </span>
                 )}
                 <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
                   Inclusive of all taxes
@@ -225,37 +332,88 @@ export default function ProductDetail() {
               <p className="text-sm text-muted leading-relaxed">{product.description}</p>
             </div>
 
-            {/* Customization */}
-            {product.customization && (
+            {/* Customization Options */}
+            {hasCustomization && (
               <div className="card p-5 space-y-4 bg-cream/30">
                 <div className="flex items-center gap-2 text-rose-600 text-xs font-semibold uppercase tracking-wider">
                   <Sparkles size={14} />
                   <span>Customization Options</span>
                 </div>
 
-                {product.customization.colors && product.customization.colors.length > 0 && (
+                {/* ── Color Picker — from DB ────────────── */}
+                {hasColors && (
                   <div>
-                    <label className="label text-xs">Yarn Color</label>
+                    <label className="label text-xs mb-2">
+                      Yarn Color
+                      {selectedColor && (
+                        <span className="ml-2 font-normal text-muted normal-case">
+                          — {selectedColor}
+                        </span>
+                      )}
+                    </label>
                     <div className="flex flex-wrap gap-2">
-                      {product.customization.colors.map((c) => (
+                      {product.availableColors!.map((c) => (
                         <button
-                          key={c}
+                          key={c.id}
                           type="button"
-                          onClick={() => setSelectedColor(c)}
-                          className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                            selectedColor === c
-                              ? 'bg-rose-500 text-white border-rose-500 shadow-soft'
+                          onClick={() => setSelectedColor(selectedColor === c.name ? '' : c.name)}
+                          title={c.name}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            selectedColor === c.name
+                              ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-soft ring-1 ring-rose-300/50'
                               : 'bg-white text-charcoal border-line hover:border-rose-300'
                           }`}
                         >
-                          {c}
+                          <span
+                            className="w-4 h-4 rounded-full border border-white shadow-sm shrink-0"
+                            style={{ backgroundColor: c.hexCode }}
+                          />
+                          {c.name}
+                          {selectedColor === c.name && <Check size={11} className="text-rose-500" />}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {product.customization.textAllowed && (
+                {/* ── Size Picker ───────────────────────── */}
+                {hasSizes && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Ruler size={13} className="text-blue-500" />
+                      <label className="label text-xs mb-0">
+                        Size
+                        {selectedSize && selectedSizeObj && selectedSizeObj.priceModifier > 0 && (
+                          <span className="ml-2 font-normal text-blue-600 normal-case">
+                            +₹{selectedSizeObj.priceModifier}
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes!.map((sz) => (
+                        <button
+                          key={sz.label}
+                          type="button"
+                          onClick={() => setSelectedSize(selectedSize === sz.label ? '' : sz.label)}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                            selectedSize === sz.label
+                              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-soft ring-1 ring-blue-300/50'
+                              : 'bg-white text-charcoal border-line hover:border-blue-300'
+                          }`}
+                        >
+                          {sz.label}
+                          {sz.priceModifier > 0 && (
+                            <span className="ml-1.5 text-[0.65rem] text-blue-500">+₹{sz.priceModifier}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Custom Text ───────────────────────── */}
+                {product.customization?.textAllowed && (
                   <div>
                     <label className="label text-xs" htmlFor="custom-text">
                       Custom Monogram / Name Tag
@@ -318,7 +476,7 @@ export default function ProductDetail() {
                 { id: 'desc',      label: 'Description' },
                 { id: 'materials', label: 'Materials & Specs' },
                 { id: 'care',      label: 'Care Instructions' },
-                { id: 'reviews',   label: `Reviews (${product.reviewCount})` },
+                { id: 'reviews',   label: `Reviews (${reviewsLoaded ? productReviews.length : (product.reviewCount || 0)})` },
               ] as const
             ).map((tab) => (
               <button
@@ -346,14 +504,108 @@ export default function ProductDetail() {
             )}
             {activeTab === 'care'    && <p>{product.care || 'Hand wash gently with mild detergent in lukewarm water. Reshape while damp and lay flat to dry in shade.'}</p>}
             {activeTab === 'reviews' && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-cream/40 border border-line">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-charcoal">Ananya S.</span>
-                    <span className="text-xs text-amber-500">★★★★★</span>
+              <div className="space-y-6">
+                {/* ── Submit a review ── */}
+                {user ? (
+                  <div className="bg-cream/40 rounded-2xl p-5 border border-line space-y-3">
+                    <p className="text-sm font-semibold text-charcoal">Write a Review</p>
+                    <form onSubmit={handleSubmitReview} className="space-y-3">
+                      {/* Star picker */}
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onMouseEnter={() => setMyRatingHover(s)}
+                            onMouseLeave={() => setMyRatingHover(0)}
+                            onClick={() => setMyRating(s)}
+                            className="transition-transform hover:scale-110"
+                          >
+                            <Star
+                              size={26}
+                              className={`transition-colors ${
+                                s <= (myRatingHover || myRating)
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-gray-200 fill-gray-200'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                        {myRating > 0 && (
+                          <span className="text-xs text-amber-600 font-semibold ml-1">
+                            {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][myRating]}
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={myComment}
+                        onChange={(e) => setMyComment(e.target.value)}
+                        placeholder="Share your experience with this product…"
+                        className="w-full border border-line rounded-xl px-3 py-2.5 text-sm placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none bg-white"
+                      />
+                      <button
+                        type="submit"
+                        disabled={submittingReview || myRating === 0}
+                        className="btn-primary py-2.5 px-5 text-xs flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {submittingReview
+                          ? <Loader2 size={14} className="animate-spin" />
+                          : <Send size={14} />}
+                        {submittingReview ? 'Submitting…' : 'Submit Review'}
+                      </button>
+                    </form>
                   </div>
-                  <p className="text-xs text-muted">"Absolutely breathtaking quality! The stitching is so clean and soft. Packed with lots of love."</p>
-                </div>
+                ) : (
+                  <div className="bg-cream/40 rounded-2xl p-4 border border-line text-center">
+                    <p className="text-sm text-muted">
+                      <Link to="/login" className="text-rose-600 font-semibold hover:underline">Sign in</Link>{' '}
+                      to leave a review for this product.
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Existing reviews ── */}
+                {!reviewsLoaded ? (
+                  <div className="flex items-center gap-2 text-muted text-xs py-4">
+                    <Loader2 size={14} className="animate-spin text-rose-400" />
+                    Loading reviews…
+                  </div>
+                ) : productReviews.length === 0 ? (
+                  <p className="text-sm text-muted py-4">
+                    No reviews yet — be the first to review this product!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {productReviews.map((r) => {
+                      const userName = typeof r.user === 'object' ? r.user.name : 'Customer';
+                      const initial = userName[0]?.toUpperCase() ?? 'C';
+                      return (
+                        <div key={r._id} className="flex gap-4 p-4 rounded-2xl bg-white border border-line shadow-soft">
+                          <div className="w-9 h-9 rounded-full bg-rose-100 text-rose-600 font-bold text-sm flex items-center justify-center shrink-0">
+                            {initial}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
+                              <span className="font-semibold text-sm text-charcoal">{userName}</span>
+                              <div className="flex items-center gap-0.5">
+                                {[1,2,3,4,5].map(s => (
+                                  <Star key={s} size={13}
+                                    className={s <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted leading-relaxed">{r.comment}</p>
+                            <p className="text-[0.65rem] text-muted/60 mt-1">
+                              {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

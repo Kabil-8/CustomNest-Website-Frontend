@@ -28,7 +28,7 @@ export default function CustomOrderCheckout() {
     fullName: user?.name ?? '', phone: user?.phone ?? '',
     line1: '', city: '', state: '', postalCode: '', country: 'India',
   });
-  const [payMethod, setPayMethod] = useState<'razorpay'>('razorpay');
+  const [payMethod] = useState<'upi-qr'>('upi-qr');
   const [placing, setPlacing] = useState(false);
 
   // Load the custom order request
@@ -112,7 +112,7 @@ export default function CustomOrderCheckout() {
         country: selectedAddress.country,
       });
 
-      if (payMethod === 'razorpay') {
+      if ((payMethod as string) === 'razorpay') {
         const loaded = await loadRazorpay();
         if (loaded && (window as any).Razorpay) {
           const rzpData = await paymentApi.createRazorpayOrder(total, order.id);
@@ -287,17 +287,14 @@ export default function CustomOrderCheckout() {
               <h2 className="font-display text-xl mb-5">Payment</h2>
               <div className="flex flex-col gap-3 mb-6">
                 {[
-                  { id: 'razorpay', label: 'Razorpay Secure Payment', icon: CreditCard,
-                    hint: 'Cards, UPI, Netbanking, Wallets', badge: 'RECOMMENDED' },
+                  { id: 'upi-qr', label: 'UPI QR Code', icon: Smartphone,
+                    hint: 'Scan QR code to pay via any UPI app', badge: 'ONLY ONLINE PAYMENT' },
                 ].map(({ id: pid, label, icon: Icon, hint, badge }) => (
                   <label key={pid} className={classNames(
                     'flex items-center justify-between border rounded-2xl p-4 cursor-pointer transition-all',
                     payMethod === pid ? 'border-rose-500 bg-rose-50/60 shadow-soft' : 'border-line hover:border-rose-200'
                   )}>
                     <div className="flex items-center gap-3">
-                      <input type="radio" name="pay" checked={payMethod === pid}
-                        onChange={() => setPayMethod(pid as typeof payMethod)}
-                        className="text-rose-500" />
                       <Icon size={20} className={payMethod === pid ? 'text-rose-600' : 'text-muted'} />
                       <div>
                         <div className="flex items-center gap-2">
@@ -318,10 +315,7 @@ export default function CustomOrderCheckout() {
                 <button onClick={() => setStep(1)} className="btn-secondary">Back</button>
                 <button onClick={placeOrder} disabled={placing} className="btn-primary flex-1 py-3.5">
                   {placing && <Spinner size={16} />}
-                  {payMethod === 'razorpay'
-                    ? `Pay Rs.${total.toLocaleString('en-IN')} with Razorpay`
-                    : `Place Order · Rs.${total.toLocaleString('en-IN')}`
-                  }
+                  {`Show QR Code · Rs.${total.toLocaleString('en-IN')}`}
                 </button>
               </div>
             </div>

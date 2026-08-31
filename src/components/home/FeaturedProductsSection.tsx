@@ -6,7 +6,9 @@ import { ProductCard } from '../ProductCard';
 import { AnimatedContent } from '../reactbits/AnimatedContent';
 
 export function FeaturedProductsSection() {
-  const { products: featuredProducts, loading } = useProducts({ limit: 6, sort: 'featured' });
+  const { products: featuredProducts, loading } = useProducts({ limit: 10, home: 1, sort: 'featured' });
+  const topRankedProducts = featuredProducts.filter(p => p.featuredRank && p.featuredRank > 0 && p.featuredRank <= 10);
+  const displayProducts = topRankedProducts.length > 0 ? topRankedProducts : featuredProducts;
 
   return (
     <section className="container-nest py-12">
@@ -32,7 +34,7 @@ export function FeaturedProductsSection() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
-            {featuredProducts.map((product) => (
+            {displayProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

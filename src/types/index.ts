@@ -18,6 +18,8 @@ export interface Product {
   care?: string;
   featured?: boolean;
   isFeatured?: boolean;
+  featuredRank?: number;
+  showOnHome?: boolean;
   bestseller?: boolean;
   isNew?: boolean;
   customizable?: boolean;
@@ -25,6 +27,11 @@ export interface Product {
     colors?: string[];
     textAllowed?: boolean;
   };
+  availableColors?: { id: string; name: string; hexCode: string }[];
+  sizes?: { label: string; priceModifier: number }[];
+  yarnType?: 'normal' | 'acrylic' | 'both';
+  normalPrice?: number | null;
+  acrylicPrice?: number | null;
   stock: number;
 }
 
@@ -107,6 +114,11 @@ export interface Order {
   createdAt: string;
   customerName: string;
   customerEmail: string;
+  // Shipping, Handcrafting & Delivery Estimates
+  estimatedDeliveryDate?: string | null;
+  trackingNumber?: string;
+  courierPartner?: string;
+  shippedAt?: string | null;
   // Custom order fields
   isCustomOrder?: boolean;
   customOrderId?: string;
@@ -145,6 +157,7 @@ export interface CustomOrderRequest {
   phone: string;
   productType: string;
   colors: string;
+  yarnType?: 'normal' | 'acrylic' | 'either' | '';
   size: string;
   quantity: number;
   budget: string;

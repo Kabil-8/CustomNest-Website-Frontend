@@ -5,7 +5,6 @@ import { FeaturedProductsSection } from '../components/home/FeaturedProductsSect
 import { HandmadeStorySection } from '../components/home/HandmadeStorySection';
 import { WhyTheCustomNestSection } from '../components/home/WhyTheCustomNestSection';
 import { CustomOrderSection } from '../components/home/CustomOrderSection';
-import { NewsletterSection } from '../components/home/NewsletterSection';
 
 export default function Home() {
   return (
@@ -16,7 +15,6 @@ export default function Home() {
       <HandmadeStorySection />
       <WhyTheCustomNestSection />
       <CustomOrderSection />
-      <NewsletterSection />
     </div>
   );
 }

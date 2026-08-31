@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,8 +15,12 @@ import {
   ChevronRight,
   Lock,
   LogIn,
+  Loader2,
+  Layers,
+  Ruler,
 } from 'lucide-react';
 import { customOrders as customOrderApi } from '../lib/api';
+import { listActiveColors, type ApiColor } from '../lib/productApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Eyebrow, Spinner, StitchDivider } from '../components/ui';
@@ -59,12 +63,17 @@ const CATEGORY_PRESETS = [
   { id: 'single-flowers', name: 'Single Crochet Flowers', image: '/images/categories/single-flowers.jpg' },
 ];
 
-const COLOR_THEMES = [
-  { name: 'Rose & Ivory', colors: ['#C06B5C', '#FBEAE6', '#FFFDF9'] },
-  { name: 'Pastel Dreams', colors: ['#E7B3A8', '#D4E2D4', '#FBEAE6'] },
-  { name: 'Earthy Botanical', colors: ['#4C7A5C', '#8A7D74', '#F2E9DF'] },
-  { name: 'Warm Vintage', colors: ['#B8863B', '#D98F82', '#2B2320'] },
-  { name: 'Custom Palette', colors: ['#A24E42', '#EDE1DA', '#7C3A31'] },
+const SIZE_OPTIONS = [
+  { label: 'Small',  desc: 'Compact & cute' },
+  { label: 'Medium', desc: 'Most popular size' },
+  { label: 'Large',  desc: 'Statement piece' },
+  { label: 'Custom', desc: 'Specify in description' },
+];
+
+const YARN_OPTIONS = [
+  { value: 'normal',  label: 'Normal Yarn',  desc: 'Soft milk cotton — matte, gentle finish' },
+  { value: 'acrylic', label: 'Acrylic Yarn', desc: 'Vibrant & durable — great for bold colors' },
+  { value: 'either',  label: 'No Preference', desc: 'Let us pick the best for your piece' },
 ];
 
 export default function CustomOrder() {
@@ -74,12 +83,25 @@ export default function CustomOrder() {
   const [loading, setLoading] = useState(false);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
+
+  // ── Live color palette from DB ────────────────────────────────────────────
+  const [colorPalette, setColorPalette] = useState<ApiColor[]>([]);
+  const [colorsLoading, setColorsLoading] = useState(true);
+
+  useEffect(() => {
+    listActiveColors()
+      .then(setColorPalette)
+      .catch(() => {/* silently fall back to no colors */})
+      .finally(() => setColorsLoading(false));
+  }, []);
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
     productType: 'Special Combo Bouquet',
-    colors: 'Rose & Ivory',
-    size: 'Standard',
+    colors: '',        // color name selected from DB palette
+    yarnType: 'either' as 'normal' | 'acrylic' | 'either' | '',
+    size: 'Medium',
     quantity: 1,
     budget: 'Rs.1,000 - Rs.2,000',
     deadline: '',
@@ -264,9 +286,29 @@ export default function CustomOrder() {
                       <span className="text-muted">Item Type:</span>
                       <span className="font-semibold">{form.productType}</span>
                     </div>
+                    {form.colors && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Color:</span>
+                        <span className="font-semibold flex items-center gap-2">
+                          {colorPalette.find(c => c.name === form.colors) && (
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-white shadow-sm inline-block"
+                              style={{ backgroundColor: colorPalette.find(c => c.name === form.colors)?.hexCode }}
+                            />
+                          )}
+                          {form.colors}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
-                      <span className="text-muted">Color Theme:</span>
-                      <span className="font-semibold">{form.colors}</span>
+                      <span className="text-muted">Size:</span>
+                      <span className="font-semibold">{form.size}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted">Yarn Type:</span>
+                      <span className="font-semibold capitalize">
+                        {form.yarnType === 'either' ? 'No preference' : form.yarnType}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted">Budget Tier:</span>
@@ -327,33 +369,111 @@ export default function CustomOrder() {
                     </div>
                   </div>
 
-                  {/* 2. Color Palette Selector */}
+                  {/* 2. Color Palette Selector — live from DB */}
                   <div>
-                    <label className="label mb-2.5">2. Color Palette Theme</label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {COLOR_THEMES.map((theme) => (
+                    <div className="flex items-center gap-2 mb-3">
+                      <Palette size={15} className="text-rose-500" />
+                      <label className="label mb-0">2. Preferred Color</label>
+                      {form.colors && (
                         <button
-                          key={theme.name}
                           type="button"
-                          onClick={() => update({ colors: theme.name })}
-                          className={`px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
-                            form.colors === theme.name
-                              ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm'
-                              : 'border-line bg-white text-muted hover:text-charcoal'
+                          onClick={() => update({ colors: '' })}
+                          className="ml-auto text-[0.65rem] text-muted hover:text-rose-600 font-semibold"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {colorsLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted py-3">
+                        <Loader2 size={14} className="animate-spin text-rose-400" />
+                        Loading color palette…
+                      </div>
+                    ) : colorPalette.length === 0 ? (
+                      <p className="text-xs text-muted py-2 italic">
+                        No colors configured yet — just describe your preferred colors in the description below.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2.5">
+                        {colorPalette.map((c) => (
+                          <button
+                            key={c._id}
+                            type="button"
+                            onClick={() => update({ colors: form.colors === c.name ? '' : c.name })}
+                            className={`px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
+                              form.colors === c.name
+                                ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm'
+                                : 'border-line bg-white text-muted hover:text-charcoal hover:border-rose-200'
+                            }`}
+                          >
+                            <span
+                              className="w-4 h-4 rounded-full border border-white shadow-sm shrink-0"
+                              style={{ backgroundColor: c.hexCode }}
+                            />
+                            {c.name}
+                            {form.colors === c.name && <Check size={11} className="text-rose-500" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Yarn Type Selector */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Layers size={15} className="text-rose-500" />
+                      <label className="label mb-0">3. Yarn Type Preference</label>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      {YARN_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => update({ yarnType: opt.value as typeof form.yarnType })}
+                          className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                            form.yarnType === opt.value
+                              ? 'border-rose-500 bg-rose-50/70 shadow-sm'
+                              : 'border-line/70 bg-ivory/50 hover:bg-white hover:border-rose-200'
                           }`}
                         >
-                          <div className="flex -space-x-1">
-                            {theme.colors.map((c, idx) => (
-                              <span key={idx} className="w-3 h-3 rounded-full border border-white" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                          {theme.name}
+                          <p className="text-xs font-bold text-charcoal">{opt.label}</p>
+                          <p className="text-[0.65rem] text-muted mt-0.5 leading-relaxed">{opt.desc}</p>
+                          {form.yarnType === opt.value && (
+                            <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px]">
+                              <Check size={10} />
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* 3. Personal Info & Order Details Grid */}
+                  {/* 4. Size Selector */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Ruler size={15} className="text-rose-500" />
+                      <label className="label mb-0">4. Size</label>
+                    </div>
+                    <div className="flex flex-wrap gap-2.5">
+                      {SIZE_OPTIONS.map((sz) => (
+                        <button
+                          key={sz.label}
+                          type="button"
+                          onClick={() => update({ size: sz.label })}
+                          className={`px-4 py-2.5 rounded-xl border-2 text-left transition-all ${
+                            form.size === sz.label
+                              ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm'
+                              : 'border-line bg-white text-charcoal hover:border-rose-200'
+                          }`}
+                        >
+                          <p className="text-xs font-bold">{sz.label}</p>
+                          <p className="text-[0.62rem] text-muted mt-0.5">{sz.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 5. Personal Info & Order Details Grid */}
                   <div className="grid sm:grid-cols-2 gap-5 pt-2">
                     <Field label="Your Full Name" required value={form.name || user.name} onChange={(v) => update({ name: v })} placeholder="e.g. Ananya Sharma" />
 
@@ -380,10 +500,10 @@ export default function CustomOrder() {
                     <Field label="Preferred Delivery Date" type="date" value={form.deadline} onChange={(v) => update({ deadline: v })} />
                   </div>
 
-                  {/* 4. Description Text Area */}
+                  {/* 6. Description Text Area */}
                   <div>
                     <label className="label" htmlFor="co-desc">
-                      4. Describe Your Custom Vision <span className="text-rose-500">*</span>
+                      6. Describe Your Custom Vision <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                       id="co-desc"
@@ -395,9 +515,9 @@ export default function CustomOrder() {
                     />
                   </div>
 
-                  {/* 5. Reference Photo Upload Dropzone */}
+                  {/* 7. Reference Photo Upload Dropzone */}
                   <div>
-                    <label className="label">5. Reference Image (Optional)</label>
+                    <label className="label">7. Reference Image (Optional)</label>
                     <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all duration-200 ${
                       filePreview ? 'border-rose-400 bg-rose-50/50' : 'border-line hover:border-rose-300 bg-ivory/40'
                     }`}>

@@ -237,10 +237,18 @@ export const orders = {
     } catch { return null; }
   },
 
-  async updateStatus(orderId: string, status: OrderStatus): Promise<Order> {
+  async updateStatus(
+    orderId: string,
+    status: OrderStatus,
+    details?: {
+      estimatedDeliveryDate?: string;
+      trackingNumber?: string;
+      courierPartner?: string;
+    }
+  ): Promise<Order> {
     const data = await req<{ order: Order }>(`/orders/${orderId}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...details }),
     });
     return data.order;
   },
@@ -264,11 +272,16 @@ export const customOrders = {
     const data = await req<{ requests: CustomOrderRequest[] }>('/custom-orders');
     return data.requests;
   },
-  async updateStatus(id: string, status: CustomOrderRequest['status']): Promise<void> {
-    await req(`/custom-orders/${id}/status`, {
+  async updateStatus(
+    id: string,
+    status: CustomOrderRequest['status'],
+    agreedPrice?: number
+  ): Promise<CustomOrderRequest> {
+    const data = await req<{ request: CustomOrderRequest }>(`/custom-orders/${id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, agreedPrice }),
     });
+    return data.request;
   },
   async adminSendMessage(id: string, text: string, status?: CustomOrderRequest['status'], agreedPrice?: number): Promise<CustomOrderRequest> {
     const data = await req<{ request: CustomOrderRequest }>(`/custom-orders/${id}/admin-message`, {
@@ -342,7 +355,63 @@ export const payment = {
   },
 };
 
+export const admin = {
+  async getBadgeCounts(): Promise<{ orders: number; customOrders: number; messages: number; reviews: number }> {
+    return req<{ orders: number; customOrders: number; messages: number; reviews: number }>('/admin/badge-counts');
+  },
+};
+
 export { ApiError };
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+
+export interface ApiReview {
+  _id: string;
+  product: { _id: string; name: string; slug: string; images: string[] } | string;
+  user: { _id: string; name: string; email?: string } | string;
+  rating: number;
+  comment: string;
+  approved: boolean;
+  createdAt: string;
+}
+
+export const reviews = {
+  // Public: get approved reviews for a product
+  async listForProduct(productId: string): Promise<ApiReview[]> {
+    const data = await req<{ reviews: ApiReview[] }>(`/reviews/product/${productId}`);
+    return data.reviews ?? [];
+  },
+
+  // Customer: submit a review
+  async submit(productId: string, rating: number, comment: string): Promise<ApiReview> {
+    const data = await req<{ review: ApiReview }>(`/reviews/product/${productId}`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment }),
+    });
+    return data.review;
+  },
+
+  // Admin: list all reviews
+  async listAll(): Promise<ApiReview[]> {
+    const data = await req<{ reviews: ApiReview[] }>('/reviews');
+    return data.reviews ?? [];
+  },
+
+  // Admin: approve or unapprove
+  async setApproved(id: string, approved: boolean): Promise<ApiReview> {
+    const data = await req<{ review: ApiReview }>(`/reviews/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approved }),
+    });
+    return data.review;
+  },
+
+  // Admin: delete
+  async remove(id: string): Promise<void> {
+    await req(`/reviews/${id}`, { method: 'DELETE' });
+  },
+};
+
 
 // ── Expenses (raw material purchases) ────────────────────────────────────────
 
@@ -413,3 +482,52 @@ export const expenses = {
     await req(`/admin/expenses/${id}`, { method: 'DELETE' });
   },
 };
+
+// ── Contact Messages (Inquiries) ─────────────────────────────────────────────
+
+export interface ContactMessage {
+  _id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  status: 'Unread' | 'Read' | 'Replied';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const contact = {
+  // Public: Send a contact message
+  async submit(data: { name: string; email: string; subject?: string; message: string }): Promise<ContactMessage> {
+    const res = await req<{ contactMessage: ContactMessage }>('/contact', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.contactMessage;
+  },
+
+  // Admin: List all contact inquiries
+  async listAll(status?: string, q?: string): Promise<ContactMessage[]> {
+    const qs = new URLSearchParams();
+    if (status && status !== 'all') qs.set('status', status);
+    if (q) qs.set('q', q);
+    const queryStr = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await req<{ messages: ContactMessage[] }>(`/contact${queryStr}`);
+    return res.messages ?? [];
+  },
+
+  // Admin: Update status (Read, Replied, Unread)
+  async updateStatus(id: string, status: 'Unread' | 'Read' | 'Replied'): Promise<ContactMessage> {
+    const res = await req<{ message: ContactMessage }>(`/contact/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    return res.message;
+  },
+
+  // Admin: Delete a contact message
+  async remove(id: string): Promise<void> {
+    await req(`/contact/${id}`, { method: 'DELETE' });
+  },
+};
+

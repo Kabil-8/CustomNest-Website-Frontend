@@ -20,17 +20,24 @@ export interface ApiProduct {
   category: ApiCategory | string;
   price: number;
   compareAtPrice?: number | null;
+  yarnType?: 'normal' | 'acrylic' | 'both';
+  normalPrice?: number | null;
+  acrylicPrice?: number | null;
   images: string[];
   description: string;
   materials: string;
   care: string;
   featured: boolean;
+  featuredRank?: number;
+  showOnHome?: boolean;
   bestseller: boolean;
   isNew: boolean;
   customizable: boolean;
   stock: number;
   rating: number;
   reviewCount: number;
+  availableColors?: { _id: string; name: string; hexCode: string; isActive: boolean }[];
+  sizes?: { label: string; priceModifier: number }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +56,7 @@ export interface ProductListParams {
   sort?: 'featured' | 'newest' | 'price-asc' | 'price-desc' | 'popular' | 'rating';
   maxPrice?: number;
   customizable?: boolean;
+  home?: boolean | string | number;
   page?: number;
   limit?: number;
 }
@@ -62,10 +70,12 @@ export function normalizeProduct(p: ApiProduct): Product {
   const catSlug   = typeof cat === 'object' && cat ? cat.slug       : (p.category as string);
   const catName   = typeof cat === 'object' && cat ? cat.name       : catSlug;
   const catColl   = typeof cat === 'object' && cat ? cat.collection : catSlug;
-  const primary   = p.images?.[0] ?? '';
+  const primary   = p.images?.[0] ?? (p as any).image ?? '';
+
+  const prodId = p._id ? String(p._id) : String((p as any).id || '');
 
   return {
-    id:            p._id,
+    id:            prodId,
     slug:          p.slug,
     name:          p.name,
     category:      catSlug,
@@ -75,21 +85,32 @@ export function normalizeProduct(p: ApiProduct): Product {
     compareAtPrice: p.compareAtPrice ?? null,
     originalPrice:  p.compareAtPrice ?? undefined,
     image:          primary,
-    images:         p.images ?? [],
+    images:         p.images ?? (primary ? [primary] : []),
     description:    p.description,
     materials:      p.materials,
     care:           p.care,
     featured:       p.featured,
     isFeatured:     p.featured,
+    featuredRank:   p.featuredRank ?? 0,
+    showOnHome:     p.showOnHome ?? false,
     bestseller:     p.bestseller,
     isNew:          p.isNew,
     customizable:   p.customizable,
     customization:  p.customizable
-      ? { colors: ['Rose', 'Cream', 'Sage', 'Ivory'], textAllowed: true }
+      ? { colors: [], textAllowed: true }
       : undefined,
+    availableColors: (p.availableColors ?? []).map((c: any) => ({
+      id:     c._id ? String(c._id) : String(c.id || ''),
+      name:   c.name,
+      hexCode: c.hexCode,
+    })),
+    sizes:          p.sizes ?? [],
     stock:          p.stock,
     rating:         p.rating,
     reviewCount:    p.reviewCount,
+    yarnType:       p.yarnType || 'both',
+    normalPrice:    p.normalPrice ?? null,
+    acrylicPrice:   p.acrylicPrice ?? null,
   };
 }
 
@@ -173,3 +194,16 @@ export const productApi = {
     await apiFetch<void>(`/products/${id}`, { method: 'DELETE' });
   },
 };
+
+// ── Active colors (public) — used in product customizer & custom order form ──
+export interface ApiColor {
+  _id: string;
+  name: string;
+  hexCode: string;
+  isActive: boolean;
+}
+
+export async function listActiveColors(): Promise<ApiColor[]> {
+  const data = await apiFetch<{ colors: ApiColor[] }>('/colors/active');
+  return data.colors ?? [];
+}

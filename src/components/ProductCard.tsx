@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Star, Eye, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { Heart, ShoppingBag, Star, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Product } from '../types';
 import { useCart } from '../context/CartContext';
@@ -78,7 +77,8 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <>
       <div
-        className="group relative bg-white border border-line rounded-2xl overflow-hidden shadow-soft hover:shadow-lift transition-all duration-300 flex flex-col justify-between h-full"
+        onClick={() => setQuickViewOpen(true)}
+        className="group relative bg-white border border-line rounded-2xl overflow-hidden shadow-soft hover:shadow-lift transition-all duration-300 flex flex-col justify-between h-full cursor-pointer select-none"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -146,11 +146,16 @@ export function ProductCard({ product }: ProductCardProps) {
 
             {/* Badges */}
             <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-              {product.isFeatured && (
+              {product.featuredRank && product.featuredRank > 0 && product.featuredRank <= 10 ? (
+                <span className="bg-amber-500 text-white text-[0.62rem] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-soft flex items-center gap-1">
+                  <Star size={9} className="fill-white" />
+                  <span>Top #{product.featuredRank}</span>
+                </span>
+              ) : product.isFeatured ? (
                 <span className="bg-rose-500 text-white text-[0.62rem] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-soft">
                   Featured
                 </span>
-              )}
+              ) : null}
               {product.originalPrice && (
                 <span className="bg-charcoal text-cream text-[0.62rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
                   Sale
@@ -164,7 +169,7 @@ export function ProductCard({ product }: ProductCardProps) {
               )}
             </div>
 
-            {/* Top Right Wishlist & Quick View Actions */}
+            {/* Top Right Wishlist Action */}
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
               <button
                 onClick={handleToggleWishlist}
@@ -177,19 +182,6 @@ export function ProductCard({ product }: ProductCardProps) {
               >
                 <Heart size={15} className={wished ? 'fill-white' : ''} />
               </button>
-
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setQuickViewOpen(true);
-                }}
-                aria-label="Quick view"
-                className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm text-charcoal hover:text-rose-600 shadow-sm flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                title="Quick View"
-              >
-                <Eye size={15} />
-              </button>
             </div>
           </div>
 
@@ -198,15 +190,21 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-[0.68rem] font-semibold text-rose-600 uppercase tracking-wider mb-1 block">
               {product.categoryLabel}
             </span>
-            <Link to={`/products/${product.slug}`} className="block group-hover:text-rose-600 transition-colors">
+            <div className="block group-hover:text-rose-600 transition-colors">
               <h3 className="font-display text-base text-charcoal line-clamp-1 mb-1.5">{product.name}</h3>
-            </Link>
-
-            <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold mb-2">
-              <Star size={13} className="fill-amber-400 text-amber-400" />
-              <span>{product.rating}</span>
-              <span className="text-muted text-[0.7rem] font-normal">({product.reviewCount})</span>
             </div>
+
+            {product.reviewCount > 0 ? (
+              <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold mb-2">
+                <Star size={13} className="fill-amber-400 text-amber-400" />
+                <span>{product.rating}</span>
+                <span className="text-muted text-[0.7rem] font-normal">({product.reviewCount})</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-xs text-muted/70 font-normal mb-2">
+                <span className="text-[0.68rem]">No reviews yet</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -222,7 +220,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             aria-label="Add to cart"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white text-xs font-semibold transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white text-xs font-semibold transition-all duration-200 cursor-pointer"
           >
             <ShoppingBag size={14} />
             <span>Add</span>
@@ -230,7 +228,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
 
-      {/* Quick View Modal */}
+      {/* Quick View Modal (Pops up on touch/click anywhere on card) */}
       {quickViewOpen && <QuickViewModal product={product} onClose={() => setQuickViewOpen(false)} />}
     </>
   );

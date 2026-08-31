@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import { orders as ordersApi } from '../lib/api';
 import type { CustomOrderMessage, Order } from '../types';
-import { formatPrice, estimateDelivery } from '../lib/utils';
+import { formatPrice, getHandcraftingWindow } from '../lib/utils';
 import { Spinner } from '../components/ui';
 
 export default function OrderConfirmation() {
@@ -69,8 +69,9 @@ export default function OrderConfirmation() {
               <p className="font-display text-lg">{order.id}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted uppercase tracking-wide">Estimated delivery</p>
-              <p className="font-semibold text-sm">{estimateDelivery(order.createdAt)}</p>
+              <p className="text-xs text-muted uppercase tracking-wide">Preparation & Posting</p>
+              <p className="font-bold text-sm text-rose-600">7–10 Days</p>
+              <p className="text-[0.65rem] text-muted">Estimated dispatch: {getHandcraftingWindow(order.createdAt).rangeText}</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 mb-4">

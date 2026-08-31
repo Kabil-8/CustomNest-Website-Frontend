@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle } from 'lucide-react';
-import { productApi, normalizeProduct, type ApiCategory } from '../../lib/productApi';
+import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle, Palette, Ruler, PlusCircle, Home as HomeIcon, Award } from 'lucide-react';
+import { productApi, normalizeProduct, listActiveColors, type ApiCategory, type ApiColor } from '../../lib/productApi';
 import type { Product } from '../../types';
 import { useToast } from '../../context/ToastContext';
 
@@ -10,6 +10,7 @@ export default function AdminProducts() {
   // ── Data state ────────────────────────────────────────────────────────────
   const [productList, setProductList]   = useState<Product[]>([]);
   const [categories, setCategories]     = useState<ApiCategory[]>([]);
+  const [allColors, setAllColors]       = useState<ApiColor[]>([]);
   const [loading, setLoading]           = useState(true);
   const [saving, setSaving]             = useState(false);
   const [error, setError]               = useState<string | null>(null);
@@ -17,6 +18,7 @@ export default function AdminProducts() {
   // ── Filter / UI state ─────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]         = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [filterView, setFilterView]           = useState<'all' | 'top10' | 'home'>('all');
   const [isModalOpen, setIsModalOpen]         = useState(false);
   const [editingProduct, setEditingProduct]   = useState<Product | null>(null);
 
@@ -30,22 +32,32 @@ export default function AdminProducts() {
     description: 'Handcrafted crochet product created with premium milk cotton yarn.',
     images: [] as string[],
     featured: false,
+    featuredRank: 0,
+    showOnHome: false,
     customizable: true,
+    yarnType: 'both',
+    normalPrice: 499,
+    acrylicPrice: 599,
+    // Per-product colours (IDs of selected Color docs)
+    selectedColorIds: [] as string[],
+    // Per-product sizes
+    sizes: [] as { label: string; priceModifier: number }[],
   };
   const [formData, setFormData] = useState(blankForm);
 
-  // ── Load products + categories from API ───────────────────────────────────
+  // ── Load products + categories + colors from API ───────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [prodResult, cats] = await Promise.all([
-        productApi.list({ limit: 48, sort: 'newest' }),
+      const [prodResult, cats, colors] = await Promise.all([
+        productApi.list({ limit: 48, sort: 'featured' }),
         productApi.listCategories(),
+        listActiveColors(),
       ]);
       setProductList(prodResult.items.map(normalizeProduct));
       setCategories(cats);
-      // Set default category for form
+      setAllColors(colors);
       if (cats.length > 0) {
         setFormData(prev => ({ ...prev, category: cats[0].slug }));
       }
@@ -76,9 +88,29 @@ export default function AdminProducts() {
       description:    p.description,
       images:         p.images?.length ? p.images : [p.image],
       featured:       p.isFeatured || p.featured || false,
+      featuredRank:   p.featuredRank ?? 0,
+      showOnHome:     p.showOnHome ?? false,
       customizable:   !!p.customization,
+      yarnType:       (p as any).yarnType || 'both',
+      normalPrice:    (p as any).normalPrice ?? 499,
+      acrylicPrice:   (p as any).acrylicPrice ?? 599,
+      selectedColorIds: (p.availableColors ?? []).map(c => c.id),
+      sizes:          p.sizes ?? [],
     });
     setIsModalOpen(true);
+  };
+
+  // ── Quick toggles ─────────────────────────────────────────────────────────
+  const handleQuickToggleHome = async (p: Product) => {
+    const nextVal = !p.showOnHome;
+    try {
+      const updated = await productApi.update(p.id, { showOnHome: nextVal });
+      const norm = normalizeProduct(updated);
+      setProductList(prev => prev.map(item => item.id === norm.id ? norm : item));
+      show(nextVal ? `"${p.name}" will now appear on Home Page 🏠` : `Removed "${p.name}" from Home Page`, 'success');
+    } catch {
+      show('Failed to update home page status', 'error');
+    }
   };
 
   // ── Image upload ──────────────────────────────────────────────────────────
@@ -105,35 +137,74 @@ export default function AdminProducts() {
   const handleRemoveImage = (i: number) =>
     setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
 
+  // ── Color picker helpers ──────────────────────────────────────────────────
+  const toggleColor = (colorId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedColorIds: prev.selectedColorIds.includes(colorId)
+        ? prev.selectedColorIds.filter(id => id !== colorId)
+        : [...prev.selectedColorIds, colorId],
+    }));
+  };
+
+  // ── Sizes helpers ─────────────────────────────────────────────────────────
+  const addSize = () => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: [...prev.sizes, { label: '', priceModifier: 0 }],
+    }));
+  };
+
+  const updateSize = (i: number, field: 'label' | 'priceModifier', value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.map((s, idx) => idx === i ? { ...s, [field]: value } : s),
+    }));
+  };
+
+  const removeSize = (i: number) => {
+    setFormData(prev => ({ ...prev, sizes: prev.sizes.filter((_, idx) => idx !== i) }));
+  };
+
   // ── Save (create or update) ───────────────────────────────────────────────
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { show('Please enter a product name.', 'error'); return; }
     if (formData.images.length === 0) { show('Please upload at least one image.', 'error'); return; }
 
+    // Validate sizes
+    for (const sz of formData.sizes) {
+      if (!sz.label.trim()) { show('All size options must have a label.', 'error'); return; }
+    }
+
     const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const payload: Record<string, unknown> = {
       name:         formData.name,
-      category:     formData.category,   // slug; backend maps to ObjectId
+      category:     formData.category,
       price:        Number(formData.price),
       compareAtPrice: Number(formData.compareAtPrice) || null,
       stock:        Number(formData.stock),
       description:  formData.description,
       images:       formData.images,
       featured:     formData.featured,
+      featuredRank: Number(formData.featuredRank) || 0,
+      showOnHome:   Boolean(formData.showOnHome),
       customizable: formData.customizable,
+      yarnType:     formData.yarnType,
+      normalPrice:  formData.yarnType === 'acrylic' ? null : Number(formData.normalPrice),
+      acrylicPrice: formData.yarnType === 'normal' ? null : Number(formData.acrylicPrice),
+      availableColors: formData.selectedColorIds,
+      sizes:        formData.sizes,
     };
 
     setSaving(true);
     try {
       if (editingProduct) {
-        // PATCH /api/products/:id
         const updated = await productApi.update(editingProduct.id, payload);
         const norm = normalizeProduct(updated);
         setProductList(prev => prev.map(p => p.id === norm.id ? norm : p));
         show(`Updated "${norm.name}" ✓`, 'success');
       } else {
-        // POST /api/products
         const created = await productApi.create({ ...payload, slug });
         const norm = normalizeProduct(created);
         setProductList(prev => [norm, ...prev]);
@@ -159,14 +230,19 @@ export default function AdminProducts() {
     }
   };
 
-  // ── Client-side filter for search box ────────────────────────────────────
+  // ── Client-side filter for search box & views ────────────────────────────
   const filteredProducts = productList.filter(p => {
     if (selectedCategory !== 'all' && p.category !== selectedCategory) return false;
+    if (filterView === 'top10' && (!p.featuredRank || p.featuredRank === 0 || p.featuredRank > 10)) return false;
+    if (filterView === 'home' && !p.showOnHome) return false;
     if (searchQuery.trim() &&
       !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       !p.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
+
+  const top10Count = productList.filter(p => p.featuredRank && p.featuredRank > 0 && p.featuredRank <= 10).length;
+  const homeCount = productList.filter(p => p.showOnHome).length;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -185,7 +261,40 @@ export default function AdminProducts() {
         </button>
       </div>
 
-      {/* Search & Category Filter */}
+      {/* Allocation Overview Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-line shadow-soft flex items-center justify-between">
+          <div>
+            <p className="text-[0.68rem] font-semibold text-muted uppercase tracking-wide">Total Products</p>
+            <p className="font-display text-2xl font-bold text-charcoal mt-0.5">{productList.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-sand/60 text-charcoal flex items-center justify-center font-bold">
+            📦
+          </div>
+        </div>
+
+        <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-200/80 shadow-soft flex items-center justify-between">
+          <div>
+            <p className="text-[0.68rem] font-semibold text-amber-700 uppercase tracking-wide">Top 10 Allocated</p>
+            <p className="font-display text-2xl font-bold text-amber-800 mt-0.5">{top10Count} / 10</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <Award size={20} />
+          </div>
+        </div>
+
+        <div className="bg-rose-50/60 rounded-2xl p-4 border border-rose-200/80 shadow-soft flex items-center justify-between">
+          <div>
+            <p className="text-[0.68rem] font-semibold text-rose-700 uppercase tracking-wide">Home Page Active</p>
+            <p className="font-display text-2xl font-bold text-rose-800 mt-0.5">{homeCount}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+            <HomeIcon size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* Search, Filter & View Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-line shadow-soft">
         <div className="relative flex-1 max-w-md">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -196,16 +305,49 @@ export default function AdminProducts() {
             className="input text-xs pl-10 py-2.5 bg-cream/30"
           />
         </div>
-        <select
-          value={selectedCategory}
-          onChange={e => setSelectedCategory(e.target.value)}
-          className="px-3 py-2.5 text-xs font-semibold rounded-xl border border-line bg-white text-charcoal outline-none cursor-pointer"
-        >
-          <option value="all">All Categories</option>
-          {categories.map(c => (
-            <option key={c._id} value={c.slug}>{c.name}</option>
-          ))}
-        </select>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* View Filter Pills */}
+          <div className="flex items-center bg-cream/60 p-1 rounded-xl border border-line">
+            <button
+              onClick={() => setFilterView('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                filterView === 'all' ? 'bg-white shadow-sm text-charcoal' : 'text-muted hover:text-charcoal'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterView('top10')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                filterView === 'top10' ? 'bg-amber-500 text-white shadow-sm' : 'text-muted hover:text-amber-600'
+              }`}
+            >
+              <Award size={13} />
+              <span>Top 10</span>
+            </button>
+            <button
+              onClick={() => setFilterView('home')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                filterView === 'home' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted hover:text-rose-600'
+              }`}
+            >
+              <HomeIcon size={13} />
+              <span>Home Page</span>
+            </button>
+          </div>
+
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="px-3 py-2.5 text-xs font-semibold rounded-xl border border-line bg-white text-charcoal outline-none cursor-pointer"
+          >
+            <option value="all">All Categories</option>
+            {categories.map(c => (
+              <option key={c._id} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Loading / Error states */}
@@ -238,14 +380,15 @@ export default function AdminProducts() {
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Price</th>
                   <th className="py-3.5 px-4">Stock</th>
-                  <th className="py-3.5 px-4">Featured</th>
+                  <th className="py-3.5 px-4">Top 10 Rank</th>
+                  <th className="py-3.5 px-4">Home Page</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60 font-medium">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-muted text-sm">
+                    <td colSpan={7} className="py-12 text-center text-muted text-sm">
                       No products found
                     </td>
                   </tr>
@@ -256,11 +399,33 @@ export default function AdminProducts() {
                         <img
                           src={p.image}
                           alt={p.name}
-                          className="w-12 h-12 rounded-xl object-cover border border-line bg-ivory"
+                          className="w-12 h-12 rounded-xl object-cover border border-line bg-ivory shrink-0"
                         />
                         <div>
                           <span className="font-bold text-charcoal block">{p.name}</span>
-                          <span className="text-[0.65rem] text-muted block font-mono">{p.id.slice(-8)}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="text-[0.65rem] text-muted font-mono">{p.id.slice(-8)}</span>
+                            {p.availableColors && p.availableColors.length > 0 && (
+                              <div className="flex -space-x-0.5">
+                                {p.availableColors.slice(0, 5).map(c => (
+                                  <span
+                                    key={c.id}
+                                    title={c.name}
+                                    className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
+                                    style={{ backgroundColor: c.hexCode }}
+                                  />
+                                ))}
+                                {p.availableColors.length > 5 && (
+                                  <span className="text-[0.58rem] text-muted ml-1">+{p.availableColors.length - 5}</span>
+                                )}
+                              </div>
+                            )}
+                            {p.sizes && p.sizes.length > 0 && (
+                              <span className="text-[0.58rem] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded-full font-semibold">
+                                {p.sizes.map(s => s.label).join(' / ')}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -275,15 +440,35 @@ export default function AdminProducts() {
                         {p.stock > 0 ? `${p.stock} units` : 'Out of Stock'}
                       </span>
                     </td>
+
+                    {/* Top 10 Rank Column */}
                     <td className="py-3 px-4">
-                      {(p.isFeatured || p.featured) ? (
-                        <span className="inline-flex items-center gap-1 text-[0.65rem] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                          <Star size={10} className="fill-amber-400" /> Featured
+                      {p.featuredRank && p.featuredRank > 0 && p.featuredRank <= 10 ? (
+                        <span className="inline-flex items-center gap-1 text-[0.65rem] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-300 shadow-xs">
+                          <Award size={12} className="text-amber-500" />
+                          <span>Top #{p.featuredRank}</span>
                         </span>
                       ) : (
-                        <span className="text-muted text-[0.65rem]">Standard</span>
+                        <span className="text-muted/60 text-[0.65rem] italic">Unranked</span>
                       )}
                     </td>
+
+                    {/* Home Page Column */}
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleQuickToggleHome(p)}
+                        title={p.showOnHome ? 'Click to remove from Home Page' : 'Click to display on Home Page'}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.65rem] font-bold border transition-all cursor-pointer ${
+                          p.showOnHome
+                            ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-xs hover:bg-rose-100'
+                            : 'bg-cream/40 text-muted border-line hover:border-rose-300'
+                        }`}
+                      >
+                        <HomeIcon size={11} className={p.showOnHome ? 'text-rose-500' : 'text-muted'} />
+                        <span>{p.showOnHome ? 'On Home' : 'Hidden'}</span>
+                      </button>
+                    </td>
+
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -318,7 +503,7 @@ export default function AdminProducts() {
               <h2 className="font-display text-xl text-charcoal">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-charcoal">
+              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-charcoal cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -337,7 +522,7 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Category, Price, Stock */}
+              {/* Category, Stock, Yarn Type */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="label text-xs" htmlFor="p-cat">Category *</label>
@@ -353,17 +538,6 @@ export default function AdminProducts() {
                   </select>
                 </div>
                 <div>
-                  <label className="label text-xs" htmlFor="p-price">Price (₹) *</label>
-                  <input
-                    id="p-price"
-                    type="number"
-                    required
-                    value={formData.price}
-                    onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="input"
-                  />
-                </div>
-                <div>
                   <label className="label text-xs" htmlFor="p-stock">Stock *</label>
                   <input
                     id="p-stock"
@@ -374,7 +548,65 @@ export default function AdminProducts() {
                     className="input"
                   />
                 </div>
+                <div>
+                  <label className="label text-xs" htmlFor="p-yarn">Yarn Type *</label>
+                  <select
+                    id="p-yarn"
+                    value={formData.yarnType}
+                    onChange={e => setFormData({ ...formData, yarnType: e.target.value })}
+                    className="input cursor-pointer"
+                  >
+                    <option value="both">Both (Normal & Acrylic)</option>
+                    <option value="normal">Normal Yarn Only</option>
+                    <option value="acrylic">Acrylic Yarn Only</option>
+                  </select>
+                </div>
               </div>
+
+              {/* Yarn Prices */}
+              {formData.yarnType !== 'normal' && (
+                <div>
+                  <label className="label text-xs" htmlFor="p-acrylic">Acrylic Yarn Price (₹) *</label>
+                  <input
+                    id="p-acrylic"
+                    type="number"
+                    required
+                    value={formData.acrylicPrice}
+                    onChange={e => setFormData({ ...formData, acrylicPrice: Number(e.target.value) })}
+                    className="input"
+                    placeholder="Price for acrylic yarn version"
+                  />
+                </div>
+              )}
+              {formData.yarnType !== 'acrylic' && (
+                <div>
+                  <label className="label text-xs" htmlFor="p-normal">Normal Yarn Price (₹) *</label>
+                  <input
+                    id="p-normal"
+                    type="number"
+                    required
+                    value={formData.normalPrice}
+                    onChange={e => setFormData({ ...formData, normalPrice: Number(e.target.value) })}
+                    className="input"
+                    placeholder="Price for normal yarn version"
+                  />
+                </div>
+              )}
+
+              {/* Fallback single price */}
+              {(formData.yarnType === 'normal' || formData.yarnType === 'acrylic') && (
+                <div>
+                  <label className="label text-xs" htmlFor="p-price">Price (₹) *</label>
+                  <input
+                    id="p-price"
+                    type="number"
+                    required
+                    value={formData.price}
+                    onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
+                    className="input"
+                  />
+                </div>
+              )}
 
               {/* Compare-at price */}
               <div>
@@ -387,6 +619,161 @@ export default function AdminProducts() {
                   placeholder="Leave 0 to hide strikethrough"
                   className="input"
                 />
+              </div>
+
+              {/* ── Top 10 Ranking & Home Page Allocation Section ──────────── */}
+              <div className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-4">
+                <div className="flex items-center gap-2 text-amber-800 font-semibold text-xs uppercase tracking-wider">
+                  <Award size={16} className="text-amber-600" />
+                  <span>Top 10 Allocation & Home Page Placement</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Top 10 Rank Priority */}
+                  <div>
+                    <label className="label text-xs" htmlFor="p-rank">
+                      Top 10 Priority Rank
+                    </label>
+                    <select
+                      id="p-rank"
+                      value={formData.featuredRank}
+                      onChange={e => setFormData({ ...formData, featuredRank: Number(e.target.value) })}
+                      className="input cursor-pointer bg-white"
+                    >
+                      <option value="0">Unranked (Standard catalog position)</option>
+                      <option value="1">🏆 Rank #1 (Top Product - Appears First)</option>
+                      <option value="2">⭐ Rank #2 (2nd Top Product)</option>
+                      <option value="3">⭐ Rank #3 (3rd Top Product)</option>
+                      <option value="4">⭐ Rank #4</option>
+                      <option value="5">⭐ Rank #5</option>
+                      <option value="6">⭐ Rank #6</option>
+                      <option value="7">⭐ Rank #7</option>
+                      <option value="8">⭐ Rank #8</option>
+                      <option value="9">⭐ Rank #9</option>
+                      <option value="10">⭐ Rank #10</option>
+                    </select>
+                    <p className="text-[0.65rem] text-amber-700/80 mt-1">
+                      Ranked 1 to 10 products will always appear first in the shop and collection.
+                    </p>
+                  </div>
+
+                  {/* Show on Home Page */}
+                  <div className="flex flex-col justify-center gap-2 pt-2">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-charcoal cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.showOnHome}
+                        onChange={e => setFormData({ ...formData, showOnHome: e.target.checked })}
+                        className="w-4 h-4 rounded border-line text-rose-500 focus:ring-rose-200"
+                      />
+                      <span>Show on Home Page Showcase</span>
+                    </label>
+                    <p className="text-[0.65rem] text-muted leading-relaxed">
+                      Enable this to display this product directly on the main website homepage.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Color Palette Picker ──────────────────────────────────── */}
+              <div className="p-5 rounded-2xl bg-cream/40 border border-line space-y-3">
+                <div className="flex items-center gap-2 text-rose-600 font-semibold text-xs uppercase tracking-wider">
+                  <Palette size={15} />
+                  <span>Available Colors for This Product</span>
+                  <span className="ml-auto text-muted normal-case font-normal">
+                    {formData.selectedColorIds.length} selected
+                  </span>
+                </div>
+                {allColors.length === 0 ? (
+                  <p className="text-xs text-muted py-2">
+                    No colors in palette yet. Go to Admin → Colors to add some first.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {allColors.map(c => {
+                      const selected = formData.selectedColorIds.includes(c._id);
+                      return (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => toggleColor(c._id)}
+                          title={c.name}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                            selected
+                              ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm'
+                              : 'border-line bg-white text-charcoal hover:border-rose-300'
+                          }`}
+                        >
+                          <span
+                            className="w-4 h-4 rounded-full border border-white shadow-sm shrink-0"
+                            style={{ backgroundColor: c.hexCode }}
+                          />
+                          {c.name}
+                          {selected && <X size={11} className="ml-0.5 text-rose-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-[0.68rem] text-muted">
+                  Only selected colors will appear on the product page for customers to choose from.
+                </p>
+              </div>
+
+              {/* ── Size Options ──────────────────────────────────────────── */}
+              <div className="p-5 rounded-2xl bg-blue-50/40 border border-blue-100 space-y-3">
+                <div className="flex items-center gap-2 text-blue-600 font-semibold text-xs uppercase tracking-wider">
+                  <Ruler size={15} />
+                  <span>Size Options</span>
+                  <span className="ml-auto text-muted normal-case font-normal text-[0.65rem]">
+                    optional — e.g. Small / Medium / Large
+                  </span>
+                </div>
+
+                {formData.sizes.length === 0 ? (
+                  <p className="text-xs text-muted">No sizes configured. Click "+ Add Size" to let customers choose a size.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {formData.sizes.map((sz, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          value={sz.label}
+                          onChange={e => updateSize(i, 'label', e.target.value)}
+                          placeholder="Size label e.g. Small"
+                          className="input text-xs py-2 flex-1 bg-white"
+                        />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted font-semibold">₹+</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={sz.priceModifier}
+                            onChange={e => updateSize(i, 'priceModifier', Number(e.target.value))}
+                            className="input text-xs py-2 pl-9 w-28 bg-white"
+                            placeholder="0"
+                            title="Price added on top of base price"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSize(i)}
+                          className="p-1.5 rounded-lg border border-line hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors cursor-pointer"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={addSize}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors mt-1 cursor-pointer"
+                >
+                  <PlusCircle size={14} />
+                  Add Size
+                </button>
               </div>
 
               {/* Image Manager */}
@@ -423,7 +810,7 @@ export default function AdminProducts() {
                           <button
                             type="button"
                             onClick={() => handleRemoveImage(i)}
-                            className="w-8 h-8 rounded-full bg-white text-rose-600 flex items-center justify-center shadow"
+                            className="w-8 h-8 rounded-full bg-white text-rose-600 flex items-center justify-center shadow cursor-pointer"
                           >
                             <X size={14} />
                           </button>
@@ -441,12 +828,6 @@ export default function AdminProducts() {
                       </label>
                     )}
                   </div>
-                )}
-
-                {formData.images.length > 1 && (
-                  <p className="text-[0.68rem] text-rose-600 font-medium">
-                    ✓ This product will auto-slide through {formData.images.length} images on the shop page.
-                  </p>
                 )}
               </div>
 
@@ -489,12 +870,12 @@ export default function AdminProducts() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="btn-secondary py-3 text-xs"
+                  className="btn-secondary py-3 text-xs cursor-pointer"
                   disabled={saving}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary py-3 px-6 text-xs flex items-center gap-2" disabled={saving}>
+                <button type="submit" className="btn-primary py-3 px-6 text-xs flex items-center gap-2 cursor-pointer" disabled={saving}>
                   {saving && <Loader2 size={14} className="animate-spin" />}
                   {saving ? 'Saving…' : editingProduct ? 'Save Changes' : 'Create Product'}
                 </button>

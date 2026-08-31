@@ -143,11 +143,18 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                   <h2 className="font-display text-xl sm:text-2xl text-charcoal mb-2">{product.name}</h2>
 
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center text-amber-500 text-xs font-semibold">
-                      <Star size={14} className="fill-amber-400 text-amber-400 mr-1" />
-                      <span>{product.rating}</span>
-                      <span className="text-muted ml-1 font-normal">({product.reviewCount} reviews)</span>
-                    </div>
+                    {product.reviewCount > 0 ? (
+                      <div className="flex items-center text-amber-500 text-xs font-semibold">
+                        <Star size={14} className="fill-amber-400 text-amber-400 mr-1" />
+                        <span>{product.rating}</span>
+                        <span className="text-muted ml-1 font-normal">({product.reviewCount} reviews)</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-xs text-muted/70 font-normal">
+                        <Star size={13} className="text-gray-300 mr-1" />
+                        <span>No reviews yet</span>
+                      </div>
+                    )}
                     <span className="text-line font-light">|</span>
                     <span className={`text-xs font-semibold ${product.stock > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {product.stock > 0 ? 'In Stock' : 'Out of Stock'}

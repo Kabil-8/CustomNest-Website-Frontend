@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Order, OrderStatus } from '../../types';
 import { orders as ordersApi } from '../../lib/api';
-import { formatPrice, formatDate } from '../../lib/utils';
+import { formatPrice, formatDate, estimateDelivery, getHandcraftingWindow } from '../../lib/utils';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { Badge, Skeleton, Spinner } from '../../components/ui';
 import { statusTone } from '../account/orderStatus';
 import { useToast } from '../../context/ToastContext';
+import { Truck, Save, Loader2 } from 'lucide-react';
 
 const STATUSES: OrderStatus[] = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -16,10 +17,22 @@ export default function AdminOrderDetail() {
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [updating, setUpdating] = useState(false);
 
+  // Delivery & Tracking form
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [courier, setCourier] = useState('');
+  const [tracking, setTracking] = useState('');
+  const [savingShipping, setSavingShipping] = useState(false);
+
   useEffect(() => {
     if (!orderId) return;
     ordersApi.getById(orderId).then((data) => {
-      setOrder(data?.order ?? null);
+      const ord = data?.order ?? null;
+      setOrder(ord);
+      if (ord) {
+        setDeliveryDate(ord.estimatedDeliveryDate || estimateDelivery(ord.shippedAt || new Date().toISOString(), 3));
+        setCourier(ord.courierPartner || '');
+        setTracking(ord.trackingNumber || '');
+      }
     });
   }, [orderId]);
 
@@ -27,11 +40,35 @@ export default function AdminOrderDetail() {
     if (!order) return;
     setUpdating(true);
     try {
-      const updated = await ordersApi.updateStatus(order.id, status);
+      const defaultDelivery = deliveryDate || estimateDelivery(new Date().toISOString(), 3);
+      const updated = await ordersApi.updateStatus(order.id, status, {
+        estimatedDeliveryDate: status === 'Shipped' ? defaultDelivery : (order.estimatedDeliveryDate || undefined),
+      });
       setOrder(updated);
       show(`Order status updated to ${status}.`, 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to update status', 'error');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSaveShipping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setSavingShipping(true);
+    try {
+      const updated = await ordersApi.updateStatus(order.id, order.status, {
+        estimatedDeliveryDate: deliveryDate.trim() || undefined,
+        courierPartner: courier.trim(),
+        trackingNumber: tracking.trim(),
+      });
+      setOrder(updated);
+      show('Shipping and delivery details saved ✓', 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to save shipping details', 'error');
+    } finally {
+      setSavingShipping(false);
     }
   };
 
@@ -54,36 +91,99 @@ export default function AdminOrderDetail() {
           ← Back to Orders
         </Link>
         <div className="flex items-center justify-between flex-wrap gap-3 mt-2">
-          <h1 className="font-display text-3xl">{order.id}</h1>
+          <h1 className="font-display text-3xl">{order.orderNumber || order.id}</h1>
           <Badge tone={statusTone(order.status)}>{order.status}</Badge>
         </div>
         <p className="text-muted text-sm mt-1">Placed on {formatDate(order.createdAt)}</p>
       </div>
 
+      {/* Status & Timeline */}
       <div className="card p-6">
         <h2 className="font-display text-lg mb-4">Update Status</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-6">
           {STATUSES.map((s) => (
             <button
               key={s}
               disabled={updating}
               onClick={() => updateStatus(s)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors cursor-pointer ${
                 order.status === s ? 'bg-rose-500 text-white border-rose-500' : 'border-line hover:border-rose-300'
               }`}
             >
-              {updating && order.status !== s ? <Spinner size={12} /> : s}
+              {updating && order.status === s ? <Spinner size={12} /> : s}
             </button>
           ))}
         </div>
-        <div className="mt-6">
-          <OrderTimeline status={order.status} />
+        <OrderTimeline status={order.status} />
+
+        <div className="mt-4 pt-4 border-t border-line/60">
+          {order.status === 'Shipped' ? (
+            <p className="text-xs text-emerald-700 font-bold text-center">
+              🚚 Dispatched · Expected delivery: {order.estimatedDeliveryDate || estimateDelivery(order.shippedAt || order.createdAt, 3)}
+            </p>
+          ) : order.status !== 'Delivered' && order.status !== 'Cancelled' ? (
+            <p className="text-xs text-rose-700 font-medium text-center">
+              🧶 Preparation Time: 7–10 days (Dispatch window: {getHandcraftingWindow(order.createdAt).rangeText})
+            </p>
+          ) : null}
         </div>
       </div>
 
+      {/* Shipping & Delivery Details Card */}
+      <form onSubmit={handleSaveShipping} className="card p-6 space-y-4">
+        <div className="flex items-center gap-2 text-charcoal font-display text-lg">
+          <Truck size={18} className="text-rose-500" />
+          <h2>Delivery & Tracking Information</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="label text-xs">Estimated Delivery Date</label>
+            <input
+              type="text"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              placeholder="e.g. 10 Sep 2026 or 3–4 days"
+              className="input text-xs"
+            />
+          </div>
+          <div>
+            <label className="label text-xs">Courier Partner</label>
+            <input
+              type="text"
+              value={courier}
+              onChange={(e) => setCourier(e.target.value)}
+              placeholder="e.g. Delhivery / DTDC"
+              className="input text-xs"
+            />
+          </div>
+          <div>
+            <label className="label text-xs">Tracking Number</label>
+            <input
+              type="text"
+              value={tracking}
+              onChange={(e) => setTracking(e.target.value)}
+              placeholder="e.g. TRK12345678"
+              className="input text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            disabled={savingShipping}
+            className="btn-primary py-2 px-5 text-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            {savingShipping ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            <span>{savingShipping ? 'Saving…' : 'Save Shipping Details'}</span>
+          </button>
+        </div>
+      </form>
+
       <div className="card p-6">
         <h2 className="font-display text-lg mb-4">Customer</h2>
-        <p className="text-sm font-medium">{order.customerName}</p>
+        <p className="text-sm font-medium">{order.customerName || order.address?.fullName}</p>
         <p className="text-sm text-muted">{order.customerEmail}</p>
       </div>
 
@@ -97,6 +197,11 @@ export default function AdminOrderDetail() {
                 <div>
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-muted">Qty {item.quantity}</p>
+                  {item.customization && (
+                    <p className="text-xs text-rose-600">
+                      {[item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
                 <span className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</span>
               </div>

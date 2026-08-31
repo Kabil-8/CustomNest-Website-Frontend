@@ -42,6 +42,9 @@ import AdminOrderDetail from './pages/admin/AdminOrderDetail';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminCustomOrders from './pages/admin/AdminCustomOrders';
 import AdminExpenses from './pages/admin/AdminExpenses';
+import AdminColors from './pages/admin/AdminColors';
+import AdminReviews from './pages/admin/AdminReviews';
+import AdminMessages from './pages/admin/AdminMessages';
 
 function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -116,6 +119,9 @@ export default function App() {
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="custom-orders" element={<AdminCustomOrders />} />
             <Route path="expenses" element={<AdminExpenses />} />
+            <Route path="colors" element={<AdminColors />} />
+            <Route path="reviews" element={<AdminReviews />} />
+            <Route path="messages" element={<AdminMessages />} />
           </Route>
         </Routes>
       </Providers>

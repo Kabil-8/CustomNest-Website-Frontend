@@ -12,7 +12,7 @@ export function CustomOrderSection() {
           {/* Visual Banner */}
           <div className="lg:col-span-6 aspect-video lg:aspect-auto lg:h-full overflow-hidden bg-ivory">
             <img
-              src="/images/categories/customised-gifts.jpg"
+              src="/images/products/single-flowers/single-flowers-02.jpg"
               alt="Custom handmade crochet gift"
               className="w-full h-full object-cover"
             />
@@ -29,8 +29,7 @@ export function CustomOrderSection() {
             <div className="pt-3">
               <Link to="/custom-order">
                 <MagneticButton className="btn-primary py-3.5 px-8 text-sm flex items-center gap-2">
-                  <span>Start a Custom Order</span>
-                  <ArrowRight size={16} />
+                  <span>Start a Custom Order --{'>'}</span>
                 </MagneticButton>
               </Link>
             </div>

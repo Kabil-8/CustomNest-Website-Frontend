@@ -11,6 +11,8 @@ import { ThreadParticles } from '../components/reactbits/ThreadParticles';
 import { BlurText } from '../components/reactbits/BlurText';
 import { MagneticButton } from '../components/reactbits/MagneticButton';
 
+import { contact as contactApi } from '../lib/api';
+
 export default function Contact() {
   const { show } = useToast();
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -24,10 +26,15 @@ export default function Contact() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
-    setSent(true);
-    show('Your message has been sent successfully!', 'success');
+    try {
+      await contactApi.submit(form);
+      setSent(true);
+      show('Your message has been sent successfully!', 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to send message.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,7 +57,7 @@ export default function Contact() {
           {/* Contact Details Column */}
           <div className="lg:col-span-5 flex flex-col gap-4">
             <ContactInfo icon={Mail} label="Email Us" value="ashwithaksamy@gmail.com" href="mailto:ashwithaksamy@gmail.com" />
-            <ContactInfo icon={InstagramIcon} label="Instagram DM" value="@thecustomnest" href="https://instagram.com" />
+            <ContactInfo icon={InstagramIcon} label="Instagram DM" value="@the_customnest_" href="https://www.instagram.com/the_customnest_/" />
             <ContactInfo icon={Phone} label="Customer Support" value="+91 98765 43210" href="tel:+919876543210" />
             <ContactInfo icon={MapPin} label="Handmade Studio" value="Chennai, Tamil Nadu, India" />
 

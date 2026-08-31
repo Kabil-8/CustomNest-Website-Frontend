@@ -23,3 +23,27 @@ export function estimateDelivery(fromISO: string, days = 7): string {
   d.setDate(d.getDate() + days);
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/**
+ * Returns the 7–10 days preparation & handcrafting dispatch window from order date
+ */
+export function getHandcraftingWindow(fromISO: string): {
+  minDateStr: string;
+  maxDateStr: string;
+  rangeText: string;
+} {
+  const start = new Date(fromISO);
+  const minD = new Date(start);
+  minD.setDate(minD.getDate() + 7);
+  const maxD = new Date(start);
+  maxD.setDate(maxD.getDate() + 10);
+
+  const minDateStr = minD.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const maxDateStr = maxD.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return {
+    minDateStr,
+    maxDateStr,
+    rangeText: `${minDateStr} – ${maxDateStr}`,
+  };
+}

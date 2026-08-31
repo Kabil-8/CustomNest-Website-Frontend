@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { orders as ordersApi } from '../../lib/api';
 import type { CustomOrderMessage, Order } from '../../types';
-import { formatPrice, formatDate, estimateDelivery } from '../../lib/utils';
+import { formatPrice, formatDate, estimateDelivery, getHandcraftingWindow } from '../../lib/utils';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { EmptyState, Skeleton, Badge } from '../../components/ui';
 import { statusTone } from './orderStatus';
@@ -53,9 +53,36 @@ export default function AccountOrderDetail() {
           <Badge tone={statusTone(order.status)}>{order.status}</Badge>
         </div>
         <OrderTimeline status={order.status} />
-        {order.status !== 'Delivered' && order.status !== 'Cancelled' && (
-          <p className="text-xs text-muted text-center mt-4">Estimated delivery: {estimateDelivery(order.createdAt)}</p>
-        )}
+        
+        {/* Fulfillment Status Information */}
+        {order.status === 'Shipped' ? (
+          <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-center mt-5 space-y-1">
+            <p className="text-sm font-bold text-emerald-800">🚚 Shipped & On Its Way!</p>
+            <p className="text-xs text-emerald-700">
+              Expected Delivery Date:{' '}
+              <span className="font-bold">
+                {order.estimatedDeliveryDate || estimateDelivery(order.shippedAt || order.createdAt, 3)}
+              </span>
+            </p>
+            {order.courierPartner && (
+              <p className="text-xs text-muted">
+                Courier: <span className="font-semibold text-charcoal">{order.courierPartner}</span>
+                {order.trackingNumber ? ` · Tracking Number: ${order.trackingNumber}` : ''}
+              </p>
+            )}
+          </div>
+        ) : order.status !== 'Delivered' && order.status !== 'Cancelled' ? (
+          <div className="bg-rose-50/60 border border-rose-200/70 rounded-2xl p-4 text-center mt-5 space-y-1">
+            <p className="text-sm font-bold text-rose-800">🧶 Handcrafting & Preparation (7–10 days)</p>
+            <p className="text-xs text-charcoal">
+              Estimated dispatch window:{' '}
+              <span className="font-bold text-rose-700">{getHandcraftingWindow(order.createdAt).rangeText}</span>
+            </p>
+            <p className="text-[0.7rem] text-muted">
+              Every item is handcrafted with care. The exact delivery date will be updated and notified as soon as your order is posted.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="card p-6">

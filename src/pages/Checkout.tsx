@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Check, CreditCard, Smartphone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { addresses as addressApi, orders as ordersApi, payment as paymentApi } from '../lib/api';
+import { addresses as addressApi, orders as ordersApi } from '../lib/api';
 import { formatPrice, classNames } from '../lib/utils';
 import type { Address } from '../types';
 import { Breadcrumb, Spinner, EmptyState } from '../components/ui';
@@ -33,7 +33,7 @@ export default function Checkout() {
     postalCode: '',
     country: 'India',
   });
-  const [payMethod, setPayMethod] = useState<'razorpay' | 'card' | 'upi-qr'>('razorpay');
+  const [payMethod, setPayMethod] = useState<'upi-qr'>('upi-qr');
   const [placing, setPlacing] = useState(false);
   const [showUpiQr, setShowUpiQr] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -86,17 +86,6 @@ export default function Checkout() {
     setStep(1);
   };
 
-  const loadRazorpayScript = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if ((window as any).Razorpay) return resolve(true);
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
     setPlacing(true);
@@ -120,60 +109,6 @@ export default function Checkout() {
         customerEmail: user.email,
         paymentMethod: payMethod,
       });
-
-      if (payMethod === 'razorpay' || payMethod === 'card') {
-        const scriptLoaded = await loadRazorpayScript();
-        if (scriptLoaded && (window as any).Razorpay) {
-          const rzpData = await paymentApi.createRazorpayOrder(total, order.id);
-
-          const options = {
-            key: rzpData.key,
-            amount: rzpData.amount,
-            currency: rzpData.currency,
-            name: 'TheCustomNest',
-            description: `Order #${order.orderNumber || order.id}`,
-            image: '/images/categories/jumbo-flower-bouquets.jpg',
-            order_id: rzpData.id,
-            prefill: {
-              name: user.name,
-              email: user.email,
-              contact: selectedAddress.phone,
-            },
-            theme: {
-              color: '#F43F5E',
-            },
-            handler: async function (response: any) {
-              try {
-                await paymentApi.verifyRazorpayPayment({
-                  orderId: order.id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                });
-                clear();
-                show('Razorpay payment verified & order confirmed! 💳', 'success');
-                navigate(`/order-confirmation/${order.id}`);
-              } catch (err) {
-                show('Payment completed but verification failed. Please contact support.', 'error');
-              }
-            },
-            modal: {
-              ondismiss: function () {
-                setPlacing(false);
-                show('Razorpay payment popup closed.', 'info');
-              },
-            },
-          };
-
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on('payment.failed', function (response: any) {
-            show(`Payment failed: ${response.error?.description || 'Transaction declined'}`, 'error');
-            setPlacing(false);
-          });
-          rzp.open();
-          return;
-        }
-      }
 
       // UPI QR Code - show QR and mark order as pending
       if (payMethod === 'upi-qr') {
@@ -312,14 +247,7 @@ export default function Checkout() {
               <h2 className="font-display text-xl mb-5">Select Payment Method</h2>
               <div className="flex flex-col gap-3 mb-6">
                 {[
-                  {
-                    id: 'razorpay',
-                    label: 'Razorpay Secure Payment',
-                    icon: CreditCard,
-                    hint: 'Pay via Cards, UPI, Netbanking, Wallets',
-                    badge: 'RECOMMENDED',
-                  },
-                  { id: 'upi-qr', label: 'UPI QR Code', icon: Smartphone, hint: 'Scan QR code to pay via any UPI app' },
+                  { id: 'upi-qr', label: 'UPI QR Code', icon: Smartphone, hint: 'Scan QR code to pay via any UPI app', badge: 'ONLY ONLINE PAYMENT' },
                 ].map(({ id, label, icon: Icon, hint, badge }) => (
                   <label
                     key={id}
@@ -362,7 +290,7 @@ export default function Checkout() {
                 </button>
                 <button onClick={placeOrder} disabled={placing} className="btn-primary flex-1 py-3.5">
                   {placing && <Spinner size={16} />}
-                  {payMethod === 'razorpay' ? `Pay with Razorpay · ${formatPrice(total)}` : payMethod === 'upi-qr' ? `Show QR Code · ${formatPrice(total)}` : `Place Order · ${formatPrice(total)}`}
+                  {`Show QR Code · ${formatPrice(total)}`}
                 </button>
               </div>
             </div>
