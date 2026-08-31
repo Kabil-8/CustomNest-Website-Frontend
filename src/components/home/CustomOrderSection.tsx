@@ -12,7 +12,7 @@ export function CustomOrderSection() {
           {/* Visual Banner */}
           <div className="lg:col-span-6 aspect-video lg:aspect-auto lg:h-full overflow-hidden bg-ivory">
             <img
-              src="/images/products/single-flowers/single-flowers-02.jpg"
+              src="/images/products/single-flowers/single-flowers-05.jpg"
               alt="Custom handmade crochet gift"
               className="w-full h-full object-cover"
             />

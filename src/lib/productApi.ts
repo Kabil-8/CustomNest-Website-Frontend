@@ -120,6 +120,8 @@ export function normalizeProduct(p: ApiProduct): Product {
 
 function getAuthHeaders(): Record<string, string> {
   try {
+    const token = localStorage.getItem('tcn_token');
+    if (token) return { Authorization: `Bearer ${token}` };
     const raw = localStorage.getItem('tcn_session');
     const session = raw ? JSON.parse(raw) : null;
     if (session?.token) return { Authorization: `Bearer ${session.token}` };

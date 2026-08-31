@@ -12,7 +12,7 @@ export function HandmadeStorySection() {
             {/* Story Visual Banner */}
             <div className="lg:col-span-6 aspect-video sm:aspect-[4/3] rounded-3xl overflow-hidden border border-line shadow-soft bg-ivory">
               <img
-                src="/images/categories/single-flowers.jpg"
+                src="/images/products/special-combo-bouquets/special-combo-bouquets-05.jpg"
                 alt="Crochet artisan crafting process"
                 className="w-full h-full object-cover"
               />
