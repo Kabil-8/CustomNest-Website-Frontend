@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save } from 'lucide-react';
+import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save, Trash2, Camera } from 'lucide-react';
 import { orders as ordersApi } from '../../lib/api';
 import type { Order, OrderStatus } from '../../types';
 import { useToast } from '../../context/ToastContext';
@@ -11,6 +11,7 @@ export default function AdminOrders() {
   const [orders, setOrders]             = useState<Order[]>([]);
   const [loading, setLoading]           = useState(true);
   const [savingDetails, setSavingDetails] = useState(false);
+  const [deletingId, setDeletingId]     = useState<string | null>(null);
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -43,6 +44,26 @@ export default function AdminOrders() {
     setDeliveryDate(o.estimatedDeliveryDate || estimateDelivery(o.shippedAt || new Date().toISOString(), 3));
     setCourier(o.courierPartner || '');
     setTracking(o.trackingNumber || '');
+  };
+
+  const handleDeleteOrder = async (e: React.MouseEvent, orderId: string, orderNumber?: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to permanently delete order ${orderNumber || orderId.slice(-8)}?`)) {
+      return;
+    }
+    setDeletingId(orderId);
+    try {
+      await ordersApi.remove(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+      show(`Order ${orderNumber || orderId.slice(-8)} permanently deleted ✓`, 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to delete order', 'error');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleUpdateStatus = async (orderId: string, nextStatus: OrderStatus) => {
@@ -175,7 +196,18 @@ export default function AdminOrders() {
                 {filteredOrders.map((o) => (
                   <tr key={o.id} className="hover:bg-rose-50/40 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-charcoal font-mono">
-                      {o.orderNumber ?? o.id.slice(-10)}
+                      <div>
+                        <span>{o.orderNumber ?? o.id.slice(-10)}</span>
+                        {o.paymentScreenshot ? (
+                          <span className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1 block w-fit">
+                            📷 Screenshot Uploaded
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[0.62rem] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-1 block w-fit">
+                            ⏳ Pending Payment SS
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="font-bold text-charcoal block">
@@ -220,13 +252,23 @@ export default function AdminOrders() {
                       </select>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => openOrderModal(o)}
-                        className="btn-secondary py-1 px-3 text-xs flex items-center gap-1 ml-auto cursor-pointer"
-                      >
-                        <Eye size={14} />
-                        <span>Details</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openOrderModal(o)}
+                          className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye size={13} />
+                          <span>Details</span>
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteOrder(e, o.id, o.orderNumber)}
+                          disabled={deletingId === o.id}
+                          title="Delete Order"
+                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 flex items-center justify-center transition cursor-pointer shrink-0"
+                        >
+                          {deletingId === o.id ? <Loader2 size={12} className="animate-spin text-rose-500" /> : <Trash2 size={12} />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -254,6 +296,58 @@ export default function AdminOrders() {
               >
                 ✕
               </button>
+            </div>
+
+            {/* UPI Payment Screenshot Verification */}
+            <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
+                  <Camera size={15} />
+                  <span>UPI Payment Screenshot</span>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold ${
+                  selectedOrder.paymentScreenshot ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                }`}>
+                  {selectedOrder.paymentScreenshot ? 'Screenshot Uploaded' : 'Awaiting Screenshot'}
+                </span>
+              </div>
+
+              {selectedOrder.paymentScreenshot ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white p-3.5 rounded-xl border border-rose-100 shadow-2xs">
+                  <a
+                    href={selectedOrder.paymentScreenshot}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative group shrink-0 block"
+                    title="Click to view full screenshot"
+                  >
+                    <img
+                      src={selectedOrder.paymentScreenshot}
+                      alt="Payment Screenshot Proof"
+                      className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl border border-rose-200 shadow-xs group-hover:scale-105 transition duration-200"
+                    />
+                    <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[10px] font-semibold transition">
+                      Enlarge ↗
+                    </div>
+                  </a>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-charcoal">Customer Payment Proof</p>
+                    <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+                      Amount charged: <strong className="text-rose-600">₹{selectedOrder.total}</strong>. Verify UPI transaction proof before shipping.
+                    </p>
+                    <a
+                      href={selectedOrder.paymentScreenshot}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-rose-600 font-bold hover:underline mt-2"
+                    >
+                      Open full screenshot in new tab ↗
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted italic">No payment screenshot attached for this order yet.</p>
+              )}
             </div>
 
             {/* Interactive Timeline */}
@@ -347,7 +441,7 @@ export default function AdminOrders() {
             <div className="p-4 rounded-2xl bg-cream/40 border border-line space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted">Customer:</span>
-                <span className="font-bold text-charcoal">{selectedOrder.address?.fullName || 'N/A'}</span>
+                <span className="font-bold text-charcoal">{selectedOrder.address?.fullName || selectedOrder.customerName || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Phone:</span>
@@ -381,7 +475,7 @@ export default function AdminOrders() {
                       <p className="text-[0.65rem] text-muted">Qty: {item.quantity}</p>
                       {item.customization && (
                         <p className="text-[0.62rem] text-rose-600">
-                          {[item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
+                          {[item.customization.yarnType, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
                         </p>
                       )}
                     </div>
@@ -392,8 +486,21 @@ export default function AdminOrders() {
             </div>
 
             <div className="pt-4 border-t border-line flex items-center justify-between">
-              <span className="font-display text-base">Total Order Value</span>
-              <span className="font-display text-xl text-rose-600">₹{selectedOrder.total}</span>
+              <div>
+                <span className="font-display text-base block">Total Order Value</span>
+                <span className="text-xs text-muted">Includes ₹{selectedOrder.shipping || 50} shipping</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-display text-xl text-rose-600">₹{selectedOrder.total}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteOrder(e, selectedOrder.id, selectedOrder.orderNumber)}
+                  disabled={deletingId === selectedOrder.id}
+                  className="btn-tertiary text-xs text-rose-600 hover:text-rose-800 flex items-center gap-1"
+                >
+                  <Trash2 size={13} /> Delete Order
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { customOrders as customOrderApi } from '../../lib/api';
 import type { CustomOrderRequest } from '../../types';
@@ -253,6 +253,30 @@ export default function AccountCustomOrders() {
                         >
                           View Order
                         </Link>
+                      </div>
+                    )}
+
+                    {/* Reference sample photo */}
+                    {r.referenceImage && (
+                      <div className="mx-6 mt-4 p-3.5 bg-rose-50/40 border border-rose-100 rounded-2xl flex items-center gap-3.5">
+                        <a href={r.referenceImage} target="_blank" rel="noopener noreferrer" className="relative group shrink-0">
+                          <img
+                            src={r.referenceImage}
+                            alt="Sample reference"
+                            className="w-14 h-14 object-cover rounded-xl border border-rose-200 shadow-xs group-hover:scale-105 transition"
+                          />
+                        </a>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-charcoal">Your Reference Sample</p>
+                          <a
+                            href={r.referenceImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-rose-600 font-semibold hover:underline mt-0.5 block"
+                          >
+                            View image ↗
+                          </a>
+                        </div>
                       </div>
                     )}
 

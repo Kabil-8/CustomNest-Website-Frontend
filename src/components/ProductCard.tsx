@@ -211,7 +211,9 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Card Footer Price & Add to Cart */}
         <div className="px-4 pb-4 pt-1 flex items-center justify-between border-t border-line/60">
           <div>
-            <span className="font-display text-lg text-rose-600">₹{product.price}</span>
+            <span className="font-display text-lg text-rose-600">
+              ₹{(product.yarnType === 'acrylic' ? product.acrylicPrice : (product.normalPrice || product.price)) || product.price}
+            </span>
             {product.originalPrice && (
               <span className="text-xs text-muted line-through ml-1.5">₹{product.originalPrice}</span>
             )}

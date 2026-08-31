@@ -76,9 +76,9 @@ export function CartDrawer() {
                         {item.product.name}
                       </Link>
 
-                      {(item.customization?.color || item.customization?.text) && (
+                      {(item.customization?.yarnType || item.customization?.color || item.customization?.size || item.customization?.text) && (
                         <p className="text-[0.7rem] text-rose-600 font-medium truncate mt-0.5">
-                          {[item.customization.color, item.customization.text].filter(Boolean).join(' • ')}
+                          {[item.customization.yarnType, item.customization.color, item.customization.size, item.customization.text].filter(Boolean).join(' • ')}
                         </p>
                       )}
 

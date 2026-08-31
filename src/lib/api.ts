@@ -252,6 +252,9 @@ export const orders = {
     });
     return data.order;
   },
+  async remove(orderId: string): Promise<void> {
+    await req(`/orders/${orderId}`, { method: 'DELETE' });
+  },
 };
 
 // ── Custom Orders ─────────────────────────────────────────────────────────────
@@ -310,6 +313,9 @@ export const customOrders = {
       body: JSON.stringify({ address }),
     });
     return data.order;
+  },
+  async remove(id: string): Promise<void> {
+    await req(`/custom-orders/${id}`, { method: 'DELETE' });
   },
 };
 

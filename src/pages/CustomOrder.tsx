@@ -18,6 +18,7 @@ import {
   Loader2,
   Layers,
   Ruler,
+  AlertCircle,
 } from 'lucide-react';
 import { customOrders as customOrderApi } from '../lib/api';
 import { listActiveColors, type ApiColor } from '../lib/productApi';
@@ -108,27 +109,103 @@ export default function CustomOrder() {
     description: '',
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill user profile info if available
+  useEffect(() => {
+    if (user) {
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || user.name || '',
+        phone: prev.phone || user.phone || '',
+      }));
+    }
+  }, [user]);
+
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        show('Please select an image smaller than 5MB.', 'error');
+        return;
+      }
       setFileName(file.name);
-      const url = URL.createObjectURL(file);
-      setFilePreview(url);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setFilePreview(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveFile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFilePreview(null);
+    setFileName('');
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (!form.name || !form.phone || !form.description) {
-      show('Please fill in all required fields marked with *', 'error');
+
+    const finalName = (form.name || user.name || '').trim();
+    const finalPhone = (form.phone || user.phone || '').trim();
+    const finalDesc = form.description.trim();
+
+    const newErrors: Record<string, string> = {};
+
+    if (!finalName) {
+      newErrors.name = 'Full name is required';
+    } else if (finalName.length < 2) {
+      newErrors.name = 'Please enter at least 2 characters for your name';
+    }
+
+    if (!finalPhone) {
+      newErrors.phone = 'Phone / WhatsApp number is required';
+    } else if (finalPhone.replace(/\D/g, '').length < 6) {
+      newErrors.phone = 'Please enter a valid phone number (at least 6 digits)';
+    }
+
+    if (!finalDesc) {
+      newErrors.description = 'Please describe your custom order vision';
+    } else if (finalDesc.length < 10) {
+      newErrors.description = 'Please provide a little more detail (at least 10 characters)';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      const missingFields: string[] = [];
+      if (newErrors.name) missingFields.push('Full Name');
+      if (newErrors.phone) missingFields.push('Phone Number');
+      if (newErrors.description) missingFields.push('Description');
+
+      show(`Please fill in the required fields highlighted in red: ${missingFields.join(', ')}`, 'error');
+
+      // Scroll and focus on the first invalid field
+      const firstKey = Object.keys(newErrors)[0];
+      const targetId = firstKey === 'description' ? 'co-desc' : `co-${firstKey}`;
+      const el = document.getElementById(targetId);
+      el?.focus();
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+
+    setErrors({});
     setLoading(true);
     try {
-      await customOrderApi.submit({ ...form, email: user.email, name: form.name || user.name });
+      await customOrderApi.submit({
+        ...form,
+        email: user.email,
+        name: finalName,
+        phone: finalPhone,
+        description: finalDesc,
+        referenceImage: filePreview || undefined,
+      });
       setSubmitted(true);
       show('Your custom request has been submitted!', 'success');
     } catch (err: unknown) {
@@ -475,7 +552,18 @@ export default function CustomOrder() {
 
                   {/* 5. Personal Info & Order Details Grid */}
                   <div className="grid sm:grid-cols-2 gap-5 pt-2">
-                    <Field label="Your Full Name" required value={form.name || user.name} onChange={(v) => update({ name: v })} placeholder="e.g. Ananya Sharma" />
+                    <Field
+                      id="co-name"
+                      label="Your Full Name"
+                      required
+                      value={form.name || user.name}
+                      onChange={(v) => {
+                        update({ name: v });
+                        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+                      }}
+                      placeholder="e.g. Ananya Sharma"
+                      error={errors.name}
+                    />
 
                     {/* Email locked to account -- read-only */}
                     <div>
@@ -494,7 +582,18 @@ export default function CustomOrder() {
                       />
                     </div>
 
-                    <Field label="Phone / WhatsApp Number" required value={form.phone} onChange={(v) => update({ phone: v })} placeholder="+91 98765 43210" />
+                    <Field
+                      id="co-phone"
+                      label="Phone / WhatsApp Number"
+                      required
+                      value={form.phone}
+                      onChange={(v) => {
+                        update({ phone: v });
+                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                      }}
+                      placeholder="+91 98765 43210"
+                      error={errors.phone}
+                    />
                     <Field label="Estimated Budget" value={form.budget} onChange={(v) => update({ budget: v })} placeholder="e.g. Rs.1,000 - Rs.2,000" />
                     <Field label="Quantity Needed" type="number" value={String(form.quantity)} onChange={(v) => update({ quantity: Number(v) || 1 })} />
                     <Field label="Preferred Delivery Date" type="date" value={form.deadline} onChange={(v) => update({ deadline: v })} />
@@ -502,17 +601,30 @@ export default function CustomOrder() {
 
                   {/* 6. Description Text Area */}
                   <div>
-                    <label className="label" htmlFor="co-desc">
-                      6. Describe Your Custom Vision <span className="text-rose-500">*</span>
+                    <label className="label flex items-center justify-between" htmlFor="co-desc">
+                      <span>6. Describe Your Custom Vision <span className="text-rose-500">*</span></span>
                     </label>
                     <textarea
                       id="co-desc"
                       required
-                      className="input min-h-[130px] resize-y rounded-2xl p-4 text-sm leading-relaxed"
+                      className={`input min-h-[130px] resize-y rounded-2xl p-4 text-sm leading-relaxed transition-all duration-200 ${
+                        errors.description
+                          ? 'border-red-500 bg-red-50/20 text-charcoal ring-2 ring-red-300/40 focus:ring-2 focus:ring-red-400 focus:border-red-500'
+                          : ''
+                      }`}
                       value={form.description}
-                      onChange={(e) => update({ description: e.target.value })}
+                      onChange={(e) => {
+                        update({ description: e.target.value });
+                        if (errors.description) setErrors((prev) => ({ ...prev, description: '' }));
+                      }}
                       placeholder="Tell us about the colors, flowers, characters, names, or special details you'd love in your custom order..."
                     />
+                    {errors.description && (
+                      <p className="text-xs text-red-500 font-medium mt-1.5 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{errors.description}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* 7. Reference Photo Upload Dropzone */}
@@ -522,12 +634,21 @@ export default function CustomOrder() {
                       filePreview ? 'border-rose-400 bg-rose-50/50' : 'border-line hover:border-rose-300 bg-ivory/40'
                     }`}>
                       {filePreview ? (
-                        <div className="flex items-center gap-4">
-                          <img src={filePreview} alt="Reference Preview" className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm" />
-                          <div className="text-left">
-                            <p className="text-xs font-bold text-charcoal">{fileName}</p>
-                            <p className="text-[11px] text-rose-600 font-semibold">Image uploaded cleanly • Click to change</p>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <img src={filePreview} alt="Reference Preview" className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm shrink-0" />
+                            <div className="text-left min-w-0">
+                              <p className="text-xs font-bold text-charcoal truncate">{fileName}</p>
+                              <p className="text-[11px] text-rose-600 font-semibold">Image uploaded cleanly • Click to change</p>
+                            </div>
                           </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveFile}
+                            className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-100/60 transition shrink-0 ml-2"
+                          >
+                            Remove
+                          </button>
                         </div>
                       ) : (
                         <div className="text-center">
@@ -573,6 +694,7 @@ export default function CustomOrder() {
 }
 
 function Field({
+  id,
   label,
   value,
   onChange,
@@ -580,7 +702,9 @@ function Field({
   type = 'text',
   className = '',
   placeholder,
+  error,
 }: {
+  id?: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
@@ -588,20 +712,31 @@ function Field({
   type?: string;
   className?: string;
   placeholder?: string;
+  error?: string;
 }) {
   return (
     <div className={className}>
-      <label className="label">
-        {label} {required && <span className="text-rose-500">*</span>}
+      <label htmlFor={id} className="label flex items-center justify-between mb-1.5">
+        <span>{label} {required && <span className="text-rose-500">*</span>}</span>
       </label>
       <input
+        id={id}
         type={type}
-        className="input rounded-xl text-sm"
+        className={`input rounded-xl text-sm transition-all duration-200 ${
+          error
+            ? 'border-red-500 bg-red-50/20 text-charcoal ring-2 ring-red-300/40 focus:ring-2 focus:ring-red-400 focus:border-red-500'
+            : ''
+        }`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        required={required}
         placeholder={placeholder}
       />
+      {error && (
+        <p className="text-xs text-red-500 font-medium mt-1.5 flex items-center gap-1 animate-fadeIn">
+          <AlertCircle size={13} className="shrink-0" />
+          <span>{error}</span>
+        </p>
+      )}
     </div>
   );
 }

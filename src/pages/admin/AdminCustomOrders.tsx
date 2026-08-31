@@ -4,7 +4,7 @@ import type { CustomOrderRequest } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { Skeleton } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
-import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save } from 'lucide-react';
+import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save, Trash2 } from 'lucide-react';
 
 const STATUSES: CustomOrderRequest['status'][] = [
   'New', 'In Review', 'Quoted', 'Accepted', 'Declined',
@@ -241,8 +241,10 @@ function ChatThread({ request, onUpdated }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminCustomOrders() {
+  const { show } = useToast();
   const [requests, setRequests] = useState<CustomOrderRequest[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => { customOrderApi.listAll().then(setRequests); }, []);
 
@@ -251,6 +253,23 @@ export default function AdminCustomOrders() {
   }
 
   const toggle = (id: string) => setExpanded((prev) => (prev === id ? null : id));
+
+  async function handleDelete(e: React.MouseEvent, id: string, name: string) {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to permanently delete custom order request from "${name}"?`)) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      await customOrderApi.remove(id);
+      setRequests((prev) => (prev ?? []).filter((r) => r.id !== id));
+      show(`Deleted custom order from "${name}" ✓`, 'success');
+    } catch {
+      show('Failed to delete custom order request', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -303,6 +322,11 @@ export default function AdminCustomOrders() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {r.referenceImage && (
+                      <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[0.65rem] font-semibold">
+                        📷 Sample Photo
+                      </span>
+                    )}
                     {r.status === 'Accepted' && r.agreedPrice && (
                       <span className="hidden sm:inline-flex items-center gap-1 text-[0.65rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                         <CheckCircle2 size={10} /> Rs.{r.agreedPrice.toLocaleString('en-IN')}
@@ -311,6 +335,15 @@ export default function AdminCustomOrders() {
                     <span className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full border text-[0.65rem] font-semibold ${STATUS_TONE[r.status]}`}>
                       {r.status}
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDelete(e, r.id, r.name)}
+                      disabled={deletingId === r.id}
+                      title="Delete Custom Order"
+                      className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 flex items-center justify-center transition ml-1"
+                    >
+                      {deletingId === r.id ? <Loader2 size={14} className="animate-spin text-rose-500" /> : <Trash2 size={14} />}
+                    </button>
                     {isOpen
                       ? <ChevronUp size={16} className="text-muted" />
                       : <ChevronDown size={16} className="text-muted" />
@@ -344,6 +377,45 @@ export default function AdminCustomOrders() {
                         <span className="text-muted">Description:</span> {r.description}
                       </p>
                     </div>
+
+                    {/* Reference Sample Photo */}
+                    {r.referenceImage && (
+                      <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <a
+                          href={r.referenceImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="relative group block shrink-0"
+                          title="Click to view full image"
+                        >
+                          <img
+                            src={r.referenceImage}
+                            alt="Customer sample reference"
+                            className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
+                          />
+                          <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                            Enlarge ↗
+                          </div>
+                        </a>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-charcoal">Customer Sample / Reference Photo</span>
+                            <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded-full">Uploaded with request</span>
+                          </div>
+                          <p className="text-xs text-muted leading-relaxed mb-2">
+                            The customer attached this reference image as visual inspiration for their custom order.
+                          </p>
+                          <a
+                            href={r.referenceImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-rose-600 font-bold hover:text-rose-700 hover:underline"
+                          >
+                            Open full size image in new tab ↗
+                          </a>
+                        </div>
+                      </div>
+                    )}
 
                     <ChatThread request={r} onUpdated={handleUpdated} />
                   </div>

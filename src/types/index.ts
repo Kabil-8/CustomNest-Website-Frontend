@@ -53,6 +53,7 @@ export interface Collection {
 
 export interface CustomizationChoice {
   color?: string;
+  yarnType?: string;
   text?: string;
   size?: string;
   personalization?: string;

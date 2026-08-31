@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext';
 
 const STEPS = ['Address', 'Review', 'Payment'];
 const SHIPPING_THRESHOLD = 999;
-const SHIPPING_FEE = 79;
+const SHIPPING_FEE = 50;
 
 export default function Checkout() {
   const { items, subtotal, clear } = useCart();

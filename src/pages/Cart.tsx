@@ -6,7 +6,7 @@ import { formatPrice } from '../lib/utils';
 import { Breadcrumb, EmptyState } from '../components/ui';
 
 const SHIPPING_THRESHOLD = 999;
-const SHIPPING_FEE = 79;
+const SHIPPING_FEE = 50;
 
 export default function Cart() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
@@ -47,7 +47,7 @@ export default function Cart() {
                       <p className="text-xs text-muted mt-0.5">{item.product.categoryLabel}</p>
                       {item.customization && (
                         <p className="text-xs text-muted mt-1">
-                          {[item.customization.color, item.customization.size, item.customization.personalization]
+                          {[item.customization.yarnType, item.customization.color, item.customization.size, item.customization.personalization]
                             .filter(Boolean)
                             .join(' · ')}
                         </p>

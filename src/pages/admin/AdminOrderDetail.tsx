@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { Order, OrderStatus } from '../../types';
 import { orders as ordersApi } from '../../lib/api';
 import { formatPrice, formatDate, estimateDelivery, getHandcraftingWindow } from '../../lib/utils';
@@ -7,15 +7,17 @@ import { OrderTimeline } from '../../components/OrderTimeline';
 import { Badge, Skeleton, Spinner } from '../../components/ui';
 import { statusTone } from '../account/orderStatus';
 import { useToast } from '../../context/ToastContext';
-import { Truck, Save, Loader2 } from 'lucide-react';
+import { Truck, Save, Loader2, Trash2, Camera } from 'lucide-react';
 
 const STATUSES: OrderStatus[] = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 export default function AdminOrderDetail() {
   const { orderId } = useParams();
   const { show } = useToast();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Delivery & Tracking form
   const [deliveryDate, setDeliveryDate] = useState('');
@@ -35,6 +37,22 @@ export default function AdminOrderDetail() {
       }
     });
   }, [orderId]);
+
+  const handleDelete = async () => {
+    if (!order) return;
+    if (!window.confirm(`Are you sure you want to permanently delete order ${order.orderNumber || order.id}?`)) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await ordersApi.remove(order.id);
+      show('Order permanently deleted ✓', 'success');
+      navigate('/admin/orders');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to delete order', 'error');
+      setDeleting(false);
+    }
+  };
 
   const updateStatus = async (status: OrderStatus) => {
     if (!order) return;
@@ -91,10 +109,68 @@ export default function AdminOrderDetail() {
           ← Back to Orders
         </Link>
         <div className="flex items-center justify-between flex-wrap gap-3 mt-2">
-          <h1 className="font-display text-3xl">{order.orderNumber || order.id}</h1>
-          <Badge tone={statusTone(order.status)}>{order.status}</Badge>
+          <div>
+            <h1 className="font-display text-3xl">{order.orderNumber || order.id}</h1>
+            <p className="text-muted text-sm mt-1">Placed on {formatDate(order.createdAt)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge tone={statusTone(order.status)}>{order.status}</Badge>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="btn-secondary py-1.5 px-3 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              <span>Delete Order</span>
+            </button>
+          </div>
         </div>
-        <p className="text-muted text-sm mt-1">Placed on {formatDate(order.createdAt)}</p>
+      </div>
+
+      {/* UPI Payment Screenshot Proof Card */}
+      <div className="card p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-charcoal font-display text-lg">
+            <Camera size={18} className="text-rose-500" />
+            <h2>UPI Payment Screenshot Proof</h2>
+          </div>
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+            order.paymentScreenshot ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+          }`}>
+            {order.paymentScreenshot ? 'Screenshot Uploaded' : 'Awaiting Screenshot'}
+          </span>
+        </div>
+
+        {order.paymentScreenshot ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-rose-50/40 p-4 rounded-2xl border border-rose-100">
+            <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="relative group shrink-0 block">
+              <img
+                src={order.paymentScreenshot}
+                alt="Payment proof"
+                className="w-28 h-28 object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition"
+              />
+              <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-xs font-semibold transition">
+                Enlarge ↗
+              </div>
+            </a>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-charcoal">Customer Transaction Proof</p>
+              <p className="text-xs text-muted mt-1 leading-relaxed">
+                Total amount charged: <strong className="text-rose-600">₹{order.total}</strong>. Verify UPI transaction ID before processing order dispatch.
+              </p>
+              <a
+                href={order.paymentScreenshot}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-rose-600 font-bold hover:underline mt-2.5"
+              >
+                Open full screenshot in new tab ↗
+              </a>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted italic">No payment screenshot attached by the customer yet.</p>
+        )}
       </div>
 
       {/* Status & Timeline */}
@@ -198,8 +274,8 @@ export default function AdminOrderDetail() {
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-muted">Qty {item.quantity}</p>
                   {item.customization && (
-                    <p className="text-xs text-rose-600">
-                      {[item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
+                    <p className="text-xs text-rose-600 mt-0.5">
+                      {[item.customization.yarnType, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Smartphone, Sparkles, Loader2 } from 'lucide-react';
+import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { addresses as addressApi, customOrders as customOrderApi, payment as paymentApi } from '../lib/api';
-import { formatPrice, classNames } from '../lib/utils';
+import { addresses as addressApi, customOrders as customOrderApi } from '../lib/api';
+import { classNames } from '../lib/utils';
 import type { Address, CustomOrderRequest } from '../types';
 import { Breadcrumb, Spinner } from '../components/ui';
 
@@ -30,6 +30,12 @@ export default function CustomOrderCheckout() {
   });
   const [payMethod] = useState<'upi-qr'>('upi-qr');
   const [placing, setPlacing] = useState(false);
+
+  // UPI QR & Screenshot upload state
+  const [showUpiQr, setShowUpiQr] = useState(false);
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   // Load the custom order request
   useEffect(() => {
@@ -70,7 +76,10 @@ export default function CustomOrderCheckout() {
     );
   }
 
-  const total = request.agreedPrice;
+  const quantity = request.quantity || 1;
+  const subtotal = request.agreedPrice;
+  const shipping = 50 * quantity;
+  const total = subtotal + shipping;
   const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
 
   const handleAddressNext = async () => {
@@ -88,16 +97,7 @@ export default function CustomOrderCheckout() {
     setStep(1);
   };
 
-  const loadRazorpay = (): Promise<boolean> => new Promise((resolve) => {
-    if ((window as any).Razorpay) return resolve(true);
-    const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-
-  const placeOrder = async () => {
+  const handleOpenPayment = async () => {
     if (!user || !selectedAddress || !id) return;
     setPlacing(true);
     try {
@@ -112,52 +112,46 @@ export default function CustomOrderCheckout() {
         country: selectedAddress.country,
       });
 
-      if ((payMethod as string) === 'razorpay') {
-        const loaded = await loadRazorpay();
-        if (loaded && (window as any).Razorpay) {
-          const rzpData = await paymentApi.createRazorpayOrder(total, order.id);
-          const options = {
-            key: rzpData.key,
-            amount: rzpData.amount,
-            currency: rzpData.currency,
-            name: 'TheCustomNest',
-            description: `Custom: ${request.productType}`,
-            order_id: rzpData.id,
-            prefill: { name: user.name, email: user.email, contact: selectedAddress.phone },
-            theme: { color: '#F43F5E' },
-            handler: async (response: any) => {
-              try {
-                await paymentApi.verifyRazorpayPayment({
-                  orderId: order.id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                });
-                show('Payment confirmed! Your custom order is now in progress.', 'success');
-                navigate(`/order-confirmation/${order.id}`);
-              } catch {
-                show('Payment done but verification failed. Contact support.', 'error');
-              }
-            },
-            modal: { ondismiss: () => { setPlacing(false); } },
-          };
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on('payment.failed', () => {
-            show('Payment failed. Please try again.', 'error');
-            setPlacing(false);
-          });
-          rzp.open();
-          return;
-        }
-      }
-
-      // COD
-      show('Order placed! Pay on delivery.', 'success');
-      navigate(`/order-confirmation/${order.id}`);
+      setPendingOrderId(order.id);
+      setShowUpiQr(true);
     } catch (err) {
-      show(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 'error');
+      show(err instanceof Error ? err.message : 'Failed to initiate order. Please try again.', 'error');
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const handleConfirmQrPayment = async () => {
+    if (!paymentScreenshot || !pendingOrderId) {
+      show('Please upload your payment screenshot first.', 'error');
+      return;
+    }
+    setUploadingScreenshot(true);
+    try {
+      const formData = new FormData();
+      formData.append('paymentScreenshot', paymentScreenshot);
+
+      const token = localStorage.getItem('tcn_token');
+      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+      const uploadRes = await fetch(`${apiBase}/api/orders/${pendingOrderId}/upload-screenshot`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload payment screenshot.');
+      }
+
+      setShowUpiQr(false);
+      setPaymentScreenshot(null);
+      show('Custom order placed! We will verify your UPI payment screenshot.', 'success');
+      navigate(`/order-confirmation/${pendingOrderId}`);
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Failed to upload screenshot. Please try again.', 'error');
+    } finally {
+      setUploadingScreenshot(false);
     }
   };
 
@@ -171,7 +165,7 @@ export default function CustomOrderCheckout() {
       <h1 className="font-display text-3xl sm:text-4xl mb-2">Custom Order Checkout</h1>
       <p className="text-muted text-sm mb-8">
         <Sparkles size={13} className="inline text-rose-500 mr-1" />
-        {request.productType} &middot; Agreed price: <strong>Rs.{total.toLocaleString('en-IN')}</strong>
+        {request.productType} &middot; Custom Price: <strong>Rs.{subtotal.toLocaleString('en-IN')}</strong>
       </p>
 
       {/* stepper */}
@@ -194,7 +188,7 @@ export default function CustomOrderCheckout() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_320px] gap-10">
+      <div className="grid lg:grid-cols-[1fr_340px] gap-10">
         <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
 
           {/* Step 0: Address */}
@@ -262,8 +256,9 @@ export default function CustomOrderCheckout() {
                 <div className="text-sm space-y-1">
                   <p className="font-semibold text-charcoal">{request.productType}</p>
                   {request.colors   && <p className="text-muted">Colors: {request.colors}</p>}
+                  {request.yarnType && <p className="text-muted capitalize">Yarn: {request.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn'}</p>}
                   {request.size     && <p className="text-muted">Size: {request.size}</p>}
-                  {request.quantity > 1 && <p className="text-muted">Qty: {request.quantity}</p>}
+                  <p className="text-muted">Qty: {quantity}</p>
                   <p className="text-muted text-xs leading-relaxed mt-1">{request.description}</p>
                 </div>
               </div>
@@ -284,23 +279,24 @@ export default function CustomOrderCheckout() {
           {/* Step 2: Payment */}
           {step === 2 && (
             <div className="bg-white rounded-3xl border border-line shadow-soft p-6 sm:p-8">
-              <h2 className="font-display text-xl mb-5">Payment</h2>
+              <h2 className="font-display text-xl mb-2">Payment</h2>
+              <p className="text-xs text-muted mb-5">Only online UPI QR payment is accepted for custom handcrafted orders.</p>
+              
               <div className="flex flex-col gap-3 mb-6">
                 {[
                   { id: 'upi-qr', label: 'UPI QR Code', icon: Smartphone,
-                    hint: 'Scan QR code to pay via any UPI app', badge: 'ONLY ONLINE PAYMENT' },
+                    hint: 'Scan QR code using Google Pay, PhonePe, Paytm or any UPI app', badge: 'ONLINE PAYMENT ONLY' },
                 ].map(({ id: pid, label, icon: Icon, hint, badge }) => (
-                  <label key={pid} className={classNames(
-                    'flex items-center justify-between border rounded-2xl p-4 cursor-pointer transition-all',
-                    payMethod === pid ? 'border-rose-500 bg-rose-50/60 shadow-soft' : 'border-line hover:border-rose-200'
-                  )}>
-                    <div className="flex items-center gap-3">
-                      <Icon size={20} className={payMethod === pid ? 'text-rose-600' : 'text-muted'} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold">{label}</p>
+                  <div key={pid} className="border-2 border-rose-500 bg-rose-50/70 rounded-2xl p-4.5 shadow-soft">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0">
+                        <Icon size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-charcoal">{label}</p>
                           {badge && (
-                            <span className="bg-rose-500 text-white text-[0.6rem] font-bold px-2 py-0.5 rounded-full">
+                            <span className="bg-rose-500 text-white text-[0.6rem] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                               {badge}
                             </span>
                           )}
@@ -308,12 +304,18 @@ export default function CustomOrderCheckout() {
                         <p className="text-xs text-muted mt-0.5">{hint}</p>
                       </div>
                     </div>
-                  </label>
+                  </div>
                 ))}
               </div>
+
+              <div className="p-3.5 bg-ivory rounded-2xl border border-line text-xs text-muted mb-6 flex items-center gap-2.5">
+                <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                <span>You will scan the QR code for <strong>Rs.{total.toLocaleString('en-IN')}</strong> and attach your payment screenshot.</span>
+              </div>
+
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="btn-secondary">Back</button>
-                <button onClick={placeOrder} disabled={placing} className="btn-primary flex-1 py-3.5">
+                <button onClick={handleOpenPayment} disabled={placing} className="btn-primary flex-1 py-3.5">
                   {placing && <Spinner size={16} />}
                   {`Show QR Code · Rs.${total.toLocaleString('en-IN')}`}
                 </button>
@@ -328,15 +330,15 @@ export default function CustomOrderCheckout() {
           <div className="flex flex-col gap-2.5 text-sm">
             <div className="flex justify-between text-muted">
               <span>Custom — {request.productType}</span>
-              <span className="text-charcoal font-medium">Rs.{total.toLocaleString('en-IN')}</span>
+              <span className="text-charcoal font-medium">Rs.{subtotal.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Shipping</span>
-              <span className="text-emerald-600 font-medium">Free</span>
+              <span>Shipping ({quantity} {quantity > 1 ? 'items' : 'item'} × Rs.50)</span>
+              <span className="text-charcoal font-medium">Rs.{shipping.toLocaleString('en-IN')}</span>
             </div>
-            <div className="border-t border-line pt-2.5 flex justify-between font-semibold text-base">
-              <span>Total</span>
-              <span>Rs.{total.toLocaleString('en-IN')}</span>
+            <div className="border-t border-line pt-2.5 flex justify-between font-bold text-base text-charcoal">
+              <span>Total Amount</span>
+              <span className="text-rose-600">Rs.{total.toLocaleString('en-IN')}</span>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-line text-xs text-muted space-y-1">
@@ -345,6 +347,85 @@ export default function CustomOrderCheckout() {
           </div>
         </div>
       </div>
+
+      {/* UPI QR Code & Screenshot Upload Modal */}
+      {showUpiQr && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border border-line">
+            <h3 className="font-display text-2xl text-charcoal mb-1">Scan & Pay</h3>
+            <p className="text-sm text-muted mb-4">
+              Scan with any UPI app to pay <strong className="text-charcoal font-bold text-base">Rs.{total.toLocaleString('en-IN')}</strong>
+            </p>
+            
+            {/* QR Code image */}
+            <div className="bg-white p-4 rounded-2xl border-2 border-rose-100 shadow-soft inline-block mb-5">
+              <img src="/images/upi-qr-code.jpg" alt="UPI QR Code" className="w-52 h-52 object-contain mx-auto" />
+              <p className="text-[11px] font-semibold text-rose-600 mt-2">TheCustomNest UPI</p>
+            </div>
+            
+            {/* Payment Screenshot Upload */}
+            <div className="mb-5 text-left">
+              <label className="label text-xs mb-1.5 flex items-center justify-between">
+                <span>Upload Payment Screenshot <span className="text-rose-500">*</span></span>
+              </label>
+              <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-4 cursor-pointer transition-all ${
+                paymentScreenshot ? 'border-emerald-400 bg-emerald-50/50' : 'border-line hover:border-rose-300 bg-ivory/50'
+              }`}>
+                {paymentScreenshot ? (
+                  <div className="flex items-center gap-3 text-sm text-center">
+                    <span className="text-emerald-600 font-bold">✓ {paymentScreenshot.name}</span>
+                    <span className="text-xs text-muted">(Click to change)</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-center py-1">
+                    <Upload size={20} className="text-rose-500 mb-1" />
+                    <span className="text-xs font-bold text-charcoal">Click to upload payment screenshot</span>
+                    <span className="text-[10px] text-muted">Attach transaction screenshot to verify</span>
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setPaymentScreenshot(file);
+                  }}
+                />
+              </label>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUpiQr(false);
+                  setPlacing(false);
+                  setPaymentScreenshot(null);
+                }}
+                disabled={uploadingScreenshot}
+                className="btn-secondary flex-1 py-3"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmQrPayment} 
+                disabled={!paymentScreenshot || uploadingScreenshot}
+                className="btn-primary flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lift"
+              >
+                {uploadingScreenshot ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin mr-1" /> Uploading...
+                  </>
+                ) : paymentScreenshot ? (
+                  "I've Paid · Confirm"
+                ) : (
+                  'Upload Screenshot First'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
