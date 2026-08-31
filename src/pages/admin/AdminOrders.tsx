@@ -462,24 +462,59 @@ export default function AdminOrders() {
               <span className="label text-[0.7rem] mb-2 block">
                 Order Items ({selectedOrder.items?.length || 0})
               </span>
-              <div className="space-y-2 divide-y divide-line/60">
+              <div className="space-y-3 divide-y divide-line/60">
                 {(selectedOrder.items || []).map((item, idx) => (
-                  <div key={idx} className="pt-2 flex items-center gap-3">
-                    <img
-                      src={item.image || '/images/products/amigurumi-bunny.jpg'}
-                      alt={item.name || 'Product'}
-                      className="w-10 h-10 rounded-xl object-cover border border-line bg-ivory"
-                    />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-charcoal">{item.name || 'Product'}</p>
-                      <p className="text-[0.65rem] text-muted">Qty: {item.quantity}</p>
-                      {item.customization && (
-                        <p className="text-[0.62rem] text-rose-600">
-                          {[item.customization.yarnType, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
+                  <div key={idx} className="pt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <a
+                        href={item.image || '/images/products/amigurumi-bunny.jpg'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative group shrink-0 block"
+                        title="Click to view full image"
+                      >
+                        <img
+                          src={item.image || '/images/products/amigurumi-bunny.jpg'}
+                          alt={item.name || 'Product'}
+                          className="w-14 h-14 rounded-xl object-cover border border-rose-200 bg-ivory shadow-xs group-hover:scale-105 transition"
+                        />
+                        {selectedOrder.isCustomOrder && (
+                          <span className="absolute -bottom-1.5 -right-1.5 bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                            Sample
+                          </span>
+                        )}
+                      </a>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-bold text-charcoal">{item.name || 'Product'}</p>
+                          {selectedOrder.isCustomOrder && (
+                            <span className="bg-rose-100 text-rose-700 text-[0.6rem] font-bold px-2 py-0.5 rounded-full">
+                              Custom Crafted
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[0.65rem] text-muted mt-0.5">Qty: {item.quantity}</p>
+                        {item.customization && (
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-[0.65rem] text-rose-600 font-semibold">
+                              {[
+                                item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
+                                item.customization.color ? `Color: ${item.customization.color}` : null,
+                                item.customization.size ? `Size: ${item.customization.size}` : null,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
+                            {item.customization.specialRequest && (
+                              <p className="text-[0.65rem] text-charcoal/80 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100/60 leading-relaxed">
+                                <span className="font-semibold text-muted">Vision/Details:</span> {item.customization.specialRequest}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs font-bold text-rose-600">₹{item.price * item.quantity}</span>
+                    <div className="sm:text-right shrink-0">
+                      <span className="text-xs font-bold text-rose-600">₹{item.price * item.quantity}</span>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { addresses as addressApi, customOrders as customOrderApi } from '../lib/api';
+import { addresses as addressApi, customOrders as customOrderApi, orders as ordersApi } from '../lib/api';
 import { classNames } from '../lib/utils';
 import type { Address, CustomOrderRequest } from '../types';
 import { Breadcrumb, Spinner } from '../components/ui';
@@ -359,7 +359,7 @@ export default function CustomOrderCheckout() {
             
             {/* QR Code image */}
             <div className="bg-white p-4 rounded-2xl border-2 border-rose-100 shadow-soft inline-block mb-5">
-              <img src="/images/upi-qr-code.jpg" alt="UPI QR Code" className="w-52 h-52 object-contain mx-auto" />
+              <img src="/images/upi.jpeg" alt="UPI QR Code" className="w-52 h-52 object-contain mx-auto" />
               <p className="text-[11px] font-semibold text-rose-600 mt-2">TheCustomNest UPI</p>
             </div>
             
@@ -397,10 +397,16 @@ export default function CustomOrderCheckout() {
             
             <div className="flex gap-3">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (pendingOrderId) {
+                    try {
+                      await ordersApi.remove(pendingOrderId);
+                    } catch (_) {}
+                  }
                   setShowUpiQr(false);
                   setPlacing(false);
                   setPaymentScreenshot(null);
+                  setPendingOrderId(null);
                 }}
                 disabled={uploadingScreenshot}
                 className="btn-secondary flex-1 py-3"

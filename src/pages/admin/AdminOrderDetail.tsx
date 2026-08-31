@@ -265,22 +265,53 @@ export default function AdminOrderDetail() {
 
       <div className="card p-6">
         <h2 className="font-display text-lg mb-4">Items</h2>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 divide-y divide-line/60">
           {order.items.map((item, i) => (
-            <div key={i} className="flex gap-4">
-              <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover bg-ivory" />
-              <div className="flex-1 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted">Qty {item.quantity}</p>
+            <div key={i} className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                <a
+                  href={item.image}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative group shrink-0 block"
+                  title="Click to view full image"
+                >
+                  <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover border border-rose-200 bg-ivory group-hover:scale-105 transition" />
+                  {order.isCustomOrder && (
+                    <span className="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                      Sample
+                    </span>
+                  )}
+                </a>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-charcoal">{item.name}</p>
+                    {order.isCustomOrder && (
+                      <span className="bg-rose-100 text-rose-700 text-[0.6rem] font-bold px-2 py-0.5 rounded-full">
+                        Custom Crafted
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted mt-0.5">Qty {item.quantity}</p>
                   {item.customization && (
-                    <p className="text-xs text-rose-600 mt-0.5">
-                      {[item.customization.yarnType, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
-                    </p>
+                    <div className="mt-1 space-y-0.5">
+                      <p className="text-xs text-rose-600 font-semibold">
+                        {[
+                          item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
+                          item.customization.color ? `Color: ${item.customization.color}` : null,
+                          item.customization.size ? `Size: ${item.customization.size}` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                      {item.customization.specialRequest && (
+                        <p className="text-xs text-charcoal/80 bg-rose-50/50 p-2 rounded-xl border border-rose-100/70 leading-relaxed">
+                          <span className="font-semibold text-muted">Customer Vision:</span> {item.customization.specialRequest}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-                <span className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</span>
               </div>
+              <span className="text-sm font-bold text-rose-600 shrink-0">{formatPrice(item.price * item.quantity)}</span>
             </div>
           ))}
         </div>

@@ -165,10 +165,11 @@ export default function AccountCustomOrders() {
       ) : (
         <div className="space-y-4">
           {requests.map((r) => {
-            const isOpen    = expanded === r.id;
-            const hasReply  = (r.messages ?? []).some((m) => m.sender === 'admin');
-            const readyToPay = r.status === 'Accepted' && !!r.agreedPrice && !r.linkedOrderId;
-            const alreadyPaid = r.status === 'Accepted' && !!r.linkedOrderId;
+            const isOpen     = expanded === r.id;
+            const hasReply   = (r.messages ?? []).some((m) => m.sender === 'admin');
+            const isPaid     = r.status === 'Accepted' && !!r.linkedOrderId && (typeof r.linkedOrderId === 'object' ? !!(r.linkedOrderId as any).paymentScreenshot : true);
+            const readyToPay = r.status === 'Accepted' && !!r.agreedPrice && !isPaid;
+            const alreadyPaid = r.status === 'Accepted' && isPaid;
 
             return (
               <div

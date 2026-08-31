@@ -334,7 +334,20 @@ export default function Checkout() {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => { setShowUpiQr(false); setPlacing(false); setPaymentScreenshot(null); }} className="btn-secondary flex-1">
+                <button
+                  onClick={async () => {
+                    if (pendingOrderId) {
+                      try {
+                        await ordersApi.remove(pendingOrderId);
+                      } catch (_) {}
+                    }
+                    setShowUpiQr(false);
+                    setPlacing(false);
+                    setPaymentScreenshot(null);
+                    setPendingOrderId(null);
+                  }}
+                  className="btn-secondary flex-1"
+                >
                   Cancel
                 </button>
                 <button
@@ -350,7 +363,8 @@ export default function Checkout() {
                       formData.append('paymentScreenshot', paymentScreenshot);
 
                       const token = localStorage.getItem('tcn_token');
-                      const uploadRes = await fetch(`http://localhost:5000/api/orders/${pendingOrderId}/upload-screenshot`, {
+                      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+                      const uploadRes = await fetch(`${apiBase}/api/orders/${pendingOrderId}/upload-screenshot`, {
                         method: 'POST',
                         headers: token ? { Authorization: `Bearer ${token}` } : {},
                         body: formData,
@@ -363,10 +377,10 @@ export default function Checkout() {
 
                       clear();
                       setShowUpiQr(false);
-                      setPendingOrderId(null);
                       setPaymentScreenshot(null);
                       show('Order placed! We will verify your payment.', 'success');
                       navigate(`/order-confirmation/${pendingOrderId}`);
+                      setPendingOrderId(null);
                     } catch (err) {
                       show('Failed to upload screenshot. Please try again.', 'error');
                     } finally {

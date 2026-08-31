@@ -226,6 +226,10 @@ export const orders = {
     const data = await req<{ orders: Order[] }>('/orders/my');
     return data.orders ?? [];
   },
+  async listMine(): Promise<Order[]> {
+    const data = await req<{ orders: Order[] }>('/orders/my');
+    return data.orders ?? [];
+  },
   async listAll(): Promise<Order[]> {
     const data = await req<{ orders: Order[] }>('/orders');
     return data.orders ?? [];
