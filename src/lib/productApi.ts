@@ -33,6 +33,10 @@ export interface ApiProduct {
   bestseller: boolean;
   isNew: boolean;
   customizable: boolean;
+  // Admin toggle: whether custom name input shows on product page
+  allowCustomName?: boolean;
+  // Per-product shipping override (₹). null = use global rate
+  shippingCharge?: number | null;
   stock: number;
   rating: number;
   reviewCount: number;
@@ -96,6 +100,8 @@ export function normalizeProduct(p: ApiProduct): Product {
     bestseller:     p.bestseller,
     isNew:          p.isNew,
     customizable:   p.customizable,
+    allowCustomName: p.allowCustomName ?? false,
+    shippingCharge:  p.shippingCharge ?? null,
     customization:  p.customizable
       ? { colors: [], textAllowed: true }
       : undefined,

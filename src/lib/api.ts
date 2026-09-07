@@ -215,7 +215,7 @@ export const addresses = {
 // ── Orders ────────────────────────────────────────────────────────────────────
 
 export const orders = {
-  async create(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'paymentStatus'>): Promise<Order> {
+  async create(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'paymentStatus'> & { isOuterState?: boolean }): Promise<Order> {
     const data = await req<{ order: Order }>('/orders', {
       method: 'POST',
       body: JSON.stringify(order),

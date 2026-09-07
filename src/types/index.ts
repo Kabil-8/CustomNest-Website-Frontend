@@ -27,12 +27,17 @@ export interface Product {
     colors?: string[];
     textAllowed?: boolean;
   };
+  // Admin toggle: show/hide custom name/monogram input on product page
+  allowCustomName?: boolean;
+  // Per-product shipping override (₹). null/undefined = use global rate
+  shippingCharge?: number | null;
   availableColors?: { id: string; name: string; hexCode: string }[];
   sizes?: { label: string; priceModifier: number }[];
   yarnType?: 'normal' | 'acrylic' | 'both';
   normalPrice?: number | null;
   acrylicPrice?: number | null;
   stock: number;
+
 }
 
 export interface Category {

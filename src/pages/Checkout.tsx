@@ -11,8 +11,16 @@ import { Breadcrumb, Spinner, EmptyState } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 
 const STEPS = ['Address', 'Review', 'Payment'];
-const SHIPPING_THRESHOLD = 999;
-const SHIPPING_FEE = 50;
+// Global shipping rates
+const SHIPPING_TN = 50;      // Tamil Nadu
+const SHIPPING_OUTER = 80;  // Outside Tamil Nadu
+
+// Tamil Nadu state name variants that map to local shipping
+const TN_VARIANTS = ['tamil nadu', 'tamilnadu', 'tn'];
+
+function isTamilNadu(state: string): boolean {
+  return TN_VARIANTS.includes(state.trim().toLowerCase());
+}
 
 export default function Checkout() {
   const { items, subtotal, clear } = useCart();
@@ -66,7 +74,24 @@ export default function Checkout() {
     );
   }
 
-  const shipping = subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+  // Determine shipping address for rate calculation
+  const activeState = selectedAddressId
+    ? (savedAddresses.find((a) => a.id === selectedAddressId)?.state ?? '')
+    : addrForm.state;
+
+  const outerState = activeState ? !isTamilNadu(activeState) : false;
+  const globalShippingRate = outerState ? SHIPPING_OUTER : SHIPPING_TN;
+
+  // Per-product shipping override: take the max shippingCharge from all cart items
+  const maxProductShipping = items.reduce<number | null>((acc, item) => {
+    const charge = item.product.shippingCharge;
+    if (charge !== null && charge !== undefined) {
+      return acc === null ? charge : Math.max(acc, charge);
+    }
+    return acc;
+  }, null);
+
+  const shipping = maxProductShipping !== null ? maxProductShipping : globalShippingRate;
   const total = subtotal + shipping;
 
   const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
@@ -108,6 +133,8 @@ export default function Checkout() {
         customerName: user.name,
         customerEmail: user.email,
         paymentMethod: payMethod,
+        isOuterState: outerState,
+
       });
 
       // UPI QR Code - show QR and mark order as pending
@@ -405,8 +432,15 @@ export default function Checkout() {
               <span className="text-charcoal font-medium">{formatPrice(subtotal)}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Shipping</span>
-              <span className="text-charcoal font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
+              <span className="flex flex-col">
+                <span>Shipping</span>
+                {activeState && (
+                  <span className="text-[0.65rem] text-muted/70 mt-0.5">
+                    {outerState ? 'Outside Tamil Nadu' : 'Tamil Nadu'}
+                  </span>
+                )}
+              </span>
+              <span className="text-charcoal font-medium">{formatPrice(shipping)}</span>
             </div>
             <div className="border-t border-line pt-2.5 flex justify-between font-semibold text-base">
               <span>Total</span>
@@ -414,6 +448,7 @@ export default function Checkout() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

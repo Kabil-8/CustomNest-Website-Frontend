@@ -35,6 +35,8 @@ export default function AdminProducts() {
     featuredRank: 0,
     showOnHome: false,
     customizable: true,
+    allowCustomName: false,
+    shippingCharge: '' as number | '',  // '' = not set (use global rate)
     yarnType: 'both',
     normalPrice: 499,
     acrylicPrice: 599,
@@ -51,7 +53,7 @@ export default function AdminProducts() {
     setError(null);
     try {
       const [prodResult, cats, colors] = await Promise.all([
-        productApi.list({ limit: 48, sort: 'featured' }),
+        productApi.list({ limit: 500, sort: 'featured' }),
         productApi.listCategories(),
         listActiveColors(),
       ]);
@@ -94,6 +96,8 @@ export default function AdminProducts() {
       featuredRank:   p.featuredRank ?? 0,
       showOnHome:     p.showOnHome ?? false,
       customizable:   !!p.customization,
+      allowCustomName: !!(p as any).allowCustomName,
+      shippingCharge: (p as any).shippingCharge ?? '',
       yarnType:       yarnType,
       normalPrice:    normalPrice,
       acrylicPrice:   acrylicPrice,
@@ -207,6 +211,8 @@ export default function AdminProducts() {
       featuredRank: Number(formData.featuredRank) || 0,
       showOnHome:   Boolean(formData.showOnHome),
       customizable: formData.customizable,
+      allowCustomName: formData.allowCustomName,
+      shippingCharge: formData.shippingCharge !== '' ? Number(formData.shippingCharge) : null,
       yarnType:     yarnType,
       normalPrice:  normalPrice,
       acrylicPrice: acrylicPrice,
@@ -866,26 +872,68 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Toggles */}
-              <div className="flex items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              {/* Toggles + Custom Name + Shipping */}
+              <div className="p-5 rounded-2xl bg-cream/40 border border-line space-y-4">
+                <div className="flex items-center gap-2 text-charcoal font-semibold text-xs uppercase tracking-wider">
+                  <span>Product Settings</span>
+                </div>
+
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.featured}
+                      onChange={e => setFormData({ ...formData, featured: e.target.checked })}
+                      className="rounded border-line text-rose-500 focus:ring-rose-200"
+                    />
+                    Featured Product
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.customizable}
+                      onChange={e => setFormData({ ...formData, customizable: e.target.checked })}
+                      className="rounded border-line text-rose-500 focus:ring-rose-200"
+                    />
+                    Allow Customization
+                  </label>
+                </div>
+
+                {/* Custom Name toggle */}
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.allowCustomName}
+                      onChange={e => setFormData({ ...formData, allowCustomName: e.target.checked })}
+                      className="rounded border-line text-rose-500 focus:ring-rose-200"
+                    />
+                    Allow Custom Name / Monogram
+                  </label>
+                  <p className="text-[0.65rem] text-muted leading-relaxed pl-6">
+                    If enabled, a &ldquo;Custom Name / Monogram&rdquo; text field will appear on the product page.
+                    Disable for products where personalisation is not applicable.
+                  </p>
+                </div>
+
+                {/* Per-product shipping charge */}
+                <div>
+                  <label className="label text-xs" htmlFor="p-shipping">
+                    Shipping Charge Override (₹) — optional
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={formData.featured}
-                    onChange={e => setFormData({ ...formData, featured: e.target.checked })}
-                    className="rounded border-line text-rose-500 focus:ring-rose-200"
+                    id="p-shipping"
+                    type="number"
+                    min="0"
+                    value={formData.shippingCharge}
+                    onChange={e => setFormData({ ...formData, shippingCharge: e.target.value === '' ? '' : Number(e.target.value) })}
+                    placeholder={`Leave blank to use global rates (₹50 Tamil Nadu / ₹80 Outer State)`}
+                    className="input text-xs"
                   />
-                  Featured Product
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.customizable}
-                    onChange={e => setFormData({ ...formData, customizable: e.target.checked })}
-                    className="rounded border-line text-rose-500 focus:ring-rose-200"
-                  />
-                  Allow Customization
-                </label>
+                  <p className="text-[0.65rem] text-muted mt-1">
+                    If set, this charge replaces the global shipping rate for orders containing this product (uses the highest charge across all cart items).
+                  </p>
+                </div>
               </div>
 
               {/* Actions */}

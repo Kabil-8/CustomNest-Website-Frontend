@@ -207,7 +207,7 @@ export default function ProductDetail() {
   const hasYarnChoice = product.yarnType === 'both' || (Boolean(product.normalPrice) && Boolean(product.acrylicPrice));
   const hasColors = product.availableColors && product.availableColors.length > 0;
   const hasSizes  = product.sizes && product.sizes.length > 0;
-  const hasCustomization = hasYarnChoice || hasColors || hasSizes || product.customization?.textAllowed || !!product.customization;
+  const hasCustomization = hasYarnChoice || hasColors || hasSizes || product.allowCustomName || product.customization?.textAllowed || !!product.customization;
 
   return (
     <div className="py-8 sm:py-12 min-h-screen">
@@ -481,11 +481,11 @@ export default function ProductDetail() {
                   </div>
                 )}
 
-                {/* ── Custom Text ───────────────────────── */}
-                {product.customization?.textAllowed && (
+                {/* ── Custom Name / Monogram ───────────── */}
+                {product.allowCustomName && (
                   <div>
                     <label className="label text-xs" htmlFor="custom-text">
-                      Custom Monogram / Name Tag
+                      Custom Name / Monogram
                     </label>
                     <input
                       id="custom-text"

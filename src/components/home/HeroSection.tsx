@@ -44,7 +44,7 @@ const HERO_SLIDES = [
     category: 'special-combo-bouquets',
   },
   {
-    src: '/images/categories/flower-pots.jpg',
+    src: '/images/products/flower-pots/flower-pots-05.jpg',
     alt: 'Crochet Flower Pot — home décor piece',
     label: 'Flower Pot',
     category: 'flower-pots',

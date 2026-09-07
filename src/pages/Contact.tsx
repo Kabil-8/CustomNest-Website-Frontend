@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, CheckCircle2, MessageCircle, Sparkles, Send } from 'lucide-react';
+import { Mail, MapPin, CheckCircle2, MessageCircle, Sparkles, Send } from 'lucide-react';
 import { InstagramIcon } from '../components/SocialIcons';
 import { useToast } from '../context/ToastContext';
 import { Spinner, Eyebrow } from '../components/ui';
@@ -56,10 +56,9 @@ export default function Contact() {
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 max-w-5xl mx-auto">
           {/* Contact Details Column */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            <ContactInfo icon={Mail} label="Email Us" value="ashwithaksamy@gmail.com" href="mailto:ashwithaksamy@gmail.com" />
+            <ContactInfo icon={Mail} label="Email Us" value="thecustomnest2023@gmail.com" href="mailto:thecustomnest2023@gmail.com" />
             <ContactInfo icon={InstagramIcon} label="Instagram DM" value="@the_customnest_" href="https://www.instagram.com/the_customnest_/" />
-            <ContactInfo icon={Phone} label="Customer Support" value="+91 98765 43210" href="tel:+919876543210" />
-            <ContactInfo icon={MapPin} label="Handmade Studio" value="Chennai, Tamil Nadu, India" />
+            <ContactInfo icon={MapPin} label="Handmade Studio" value="Coimbatore, Tamil Nadu, India" />
 
             <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-rose-100/80 shadow-soft mt-2">
               <h3 className="font-display text-lg text-charcoal mb-2 flex items-center gap-2">
