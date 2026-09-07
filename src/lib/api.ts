@@ -267,6 +267,7 @@ export const customOrders = {
   async submit(
     input: Omit<CustomOrderRequest, 'id' | 'status' | 'createdAt' | 'adminReply' | 'repliedAt' | 'messages'> & {
       referenceImageFile?: File | null;
+      referenceImageFiles?: (File | null)[];
       sampleImageFile?: File | null;
     }
   ): Promise<CustomOrderRequest> {
@@ -282,8 +283,17 @@ export const customOrders = {
     }
 
     // File fields — real file uploads (saved to /uploads on server)
-    if (input.referenceImageFile) formData.append('referenceImage', input.referenceImageFile);
-    if (input.sampleImageFile)    formData.append('sampleImage',    input.sampleImageFile);
+    if (input.referenceImageFiles && input.referenceImageFiles.length > 0) {
+      input.referenceImageFiles.forEach((f, idx) => {
+        if (f) {
+          formData.append(idx === 0 ? 'referenceImage' : `referenceImage${idx + 1}`, f);
+        }
+      });
+    } else if (input.referenceImageFile) {
+      formData.append('referenceImage', input.referenceImageFile);
+    }
+
+    if (input.sampleImageFile) formData.append('sampleImage', input.sampleImageFile);
 
     const res = await fetch(`${BASE}/custom-orders`, {
       method: 'POST',

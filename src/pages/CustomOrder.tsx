@@ -90,11 +90,17 @@ export default function CustomOrder() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ── Two image upload slots ─────────────────────────────────────────────────
-  // Slot 1: Customer's own photo (the person/pet/thing to be recreated)
-  const [refFile, setRefFile]       = useState<File | null>(null);
-  const [refPreview, setRefPreview] = useState<string | null>(null);
-  // Slot 2: Sample / inspiration image (what they want it to look like)
+  // ── Customer image upload slots ──────────────────────────────────────────
+  // For resin art: up to 3 photos (Photo 1, Photo 2, Photo 3)
+  // For other products: Photo 1
+  const [refFile1, setRefFile1] = useState<File | null>(null);
+  const [refPreview1, setRefPreview1] = useState<string | null>(null);
+  const [refFile2, setRefFile2] = useState<File | null>(null);
+  const [refPreview2, setRefPreview2] = useState<string | null>(null);
+  const [refFile3, setRefFile3] = useState<File | null>(null);
+  const [refPreview3, setRefPreview3] = useState<string | null>(null);
+
+  // Sample / inspiration image (what they want it to look like)
   const [sampleFile, setSampleFile]       = useState<File | null>(null);
   const [samplePreview, setSamplePreview] = useState<string | null>(null);
 
@@ -163,7 +169,9 @@ export default function CustomOrder() {
     };
   }
 
-  const handleRefFileChange    = makeFileHandler(setRefFile,    setRefPreview);
+  const handleRefFileChange1   = makeFileHandler(setRefFile1,   setRefPreview1);
+  const handleRefFileChange2   = makeFileHandler(setRefFile2,   setRefPreview2);
+  const handleRefFileChange3   = makeFileHandler(setRefFile3,   setRefPreview3);
   const handleSampleFileChange = makeFileHandler(setSampleFile, setSamplePreview);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -215,6 +223,7 @@ export default function CustomOrder() {
     setErrors({});
     setLoading(true);
     try {
+      const allRefFiles = [refFile1, refFile2, refFile3].filter(Boolean) as File[];
       await customOrderApi.submit({
         ...form,
         email: user.email,
@@ -222,8 +231,9 @@ export default function CustomOrder() {
         phone: finalPhone,
         description: finalDesc,
         resinOption: isResin ? form.resinOption : undefined,
-        referenceImageFile: refFile    || null,
-        sampleImageFile:    sampleFile || null,
+        referenceImageFile: allRefFiles[0] || null,
+        referenceImageFiles: allRefFiles,
+        sampleImageFile: sampleFile || null,
       });
       setSubmitted(true);
       show('Your custom request has been submitted!', 'success');
@@ -422,10 +432,10 @@ export default function CustomOrder() {
                   <button
                     onClick={() => {
                       setSubmitted(false);
-                      setRefFile(null);
-                      setRefPreview(null);
-                      setSampleFile(null);
-                      setSamplePreview(null);
+                      setRefFile1(null); setRefPreview1(null);
+                      setRefFile2(null); setRefPreview2(null);
+                      setRefFile3(null); setRefPreview3(null);
+                      setSampleFile(null); setSamplePreview(null);
                     }}
                     className="btn-primary"
                   >
@@ -688,29 +698,85 @@ export default function CustomOrder() {
                     )}
                   </div>
 
-                  {/* 7. Images Upload — two slots */}
+                  {/* 7. Images Upload */}
                   <div className="space-y-4">
-                    <p className="label">7. Upload Images <span className="text-muted font-normal">(Optional)</span></p>
+                    <div>
+                      <p className="label mb-0">
+                        7. {isResin ? 'Upload Resin Photos (Up to 3 Photos + 1 Sample Design)' : 'Upload Images'}{' '}
+                        <span className="text-muted font-normal">(Optional)</span>
+                      </p>
+                      <p className="text-xs text-muted mt-1">
+                        {isResin
+                          ? 'For resin frames/art, you can upload up to 3 photos of your loved ones, pets, or memories to embed in your piece, plus an inspiration photo.'
+                          : 'Upload a photo of the person, pet, or object to recreate, plus any sample styling reference.'}
+                      </p>
+                    </div>
 
-                    {/* Slot A: Customer's own photo */}
-                    <ImageUploadSlot
-                      label="Your Photo"
-                      hint="Upload a photo of the person, pet, or object to recreate"
-                      preview={refPreview}
-                      file={refFile}
-                      onChange={handleRefFileChange}
-                      onRemove={() => { setRefFile(null); setRefPreview(null); }}
-                    />
+                    {isResin ? (
+                      <div className="space-y-3">
+                        {/* Resin Slot 1 */}
+                        <ImageUploadSlot
+                          label="📸 Photo 1 (Main Subject)"
+                          hint="Primary photo to be cast/framed inside the resin artwork"
+                          preview={refPreview1}
+                          file={refFile1}
+                          onChange={handleRefFileChange1}
+                          onRemove={() => { setRefFile1(null); setRefPreview1(null); }}
+                        />
 
-                    {/* Slot B: Sample / inspiration reference */}
-                    <ImageUploadSlot
-                      label="Sample / Inspiration Photo"
-                      hint="Upload a sample image showing the style or design you want"
-                      preview={samplePreview}
-                      file={sampleFile}
-                      onChange={handleSampleFileChange}
-                      onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
-                    />
+                        {/* Resin Slot 2 */}
+                        <ImageUploadSlot
+                          label="📸 Photo 2 (Optional)"
+                          hint="Second photo for collage, dual portrait, or multi-photo resin"
+                          preview={refPreview2}
+                          file={refFile2}
+                          onChange={handleRefFileChange2}
+                          onRemove={() => { setRefFile2(null); setRefPreview2(null); }}
+                        />
+
+                        {/* Resin Slot 3 */}
+                        <ImageUploadSlot
+                          label="📸 Photo 3 (Optional)"
+                          hint="Third photo for multiple photos or collage piece"
+                          preview={refPreview3}
+                          file={refFile3}
+                          onChange={handleRefFileChange3}
+                          onRemove={() => { setRefFile3(null); setRefPreview3(null); }}
+                        />
+
+                        {/* Sample / Inspiration reference */}
+                        <ImageUploadSlot
+                          label="🖼️ Sample / Inspiration Photo"
+                          hint="Upload a sample image showing the style, floral border, or design you want"
+                          preview={samplePreview}
+                          file={sampleFile}
+                          onChange={handleSampleFileChange}
+                          onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Slot A: Customer's own photo */}
+                        <ImageUploadSlot
+                          label="📸 Your Photo"
+                          hint="Upload a photo of the person, pet, or object to recreate"
+                          preview={refPreview1}
+                          file={refFile1}
+                          onChange={handleRefFileChange1}
+                          onRemove={() => { setRefFile1(null); setRefPreview1(null); }}
+                        />
+
+                        {/* Slot B: Sample / inspiration reference */}
+                        <ImageUploadSlot
+                          label="🖼️ Sample / Inspiration Photo"
+                          hint="Upload a sample image showing the style or design you want"
+                          preview={samplePreview}
+                          file={sampleFile}
+                          onChange={handleSampleFileChange}
+                          onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Trust guarantees bar */}

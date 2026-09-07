@@ -281,6 +281,7 @@ export default function AdminCustomOrders() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingImg, setDownloadingImg] = useState<string | null>(null);
+  const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string; filename: string } | null>(null);
 
   useEffect(() => { customOrderApi.listAll().then(setRequests); }, []);
 
@@ -362,9 +363,14 @@ export default function AdminCustomOrders() {
                         ✨ {r.resinOption}
                       </span>
                     )}
-                    {r.referenceImage && (
+                    {((r.referenceImages && r.referenceImages.length > 0) || r.referenceImage) && (
                       <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[0.65rem] font-semibold">
-                        📷 Sample Photo
+                        📷 {r.referenceImages && r.referenceImages.length > 0 ? r.referenceImages.length : 1} Photo{(r.referenceImages?.length || 1) > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {r.sampleImage && (
+                      <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[0.65rem] font-semibold">
+                        🖼️ Sample Design
                       </span>
                     )}
                     {r.status === 'Accepted' && r.agreedPrice && (
@@ -427,132 +433,216 @@ export default function AdminCustomOrders() {
                     </div>
 
                     {/* Customer Images — shown only when present */}
-                    {(r.referenceImage || r.sampleImage) && (
-                      <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 space-y-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-bold text-charcoal">Customer Uploaded Images</span>
-                          <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded-full">Sent with request</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          {/* Slot A: Customer's own photo */}
-                          {r.referenceImage && (() => {
-                            const photoUrl = getImageUrl(r.referenceImage);
-                            const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-                            const filename = `${safeName}_customer_photo.jpg`;
-                            const isDl = downloadingImg === `photo-${r.id}`;
+                    {(() => {
+                      const allCustomerPhotos = (r.referenceImages && r.referenceImages.length > 0)
+                        ? r.referenceImages
+                        : (r.referenceImage ? [r.referenceImage] : []);
+                      const hasAnyImages = allCustomerPhotos.length > 0 || Boolean(r.sampleImage);
 
-                            return (
-                              <div className="flex-1 space-y-2">
-                                <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">📸 Their Photo</p>
-                                <p className="text-[11px] text-muted leading-snug">Person / pet / object to recreate</p>
-                                <a
-                                  href={photoUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="relative group block"
-                                  title="Click to view full size"
-                                >
-                                  <img
-                                    src={photoUrl}
-                                    alt="Customer photo"
-                                    className="w-full max-w-[180px] aspect-square object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
-                                  />
-                                  <div className="absolute inset-0 max-w-[180px] bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
-                                    Enlarge ↗
+                      if (!hasAnyImages) return null;
+
+                      return (
+                        <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-rose-200/50">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-charcoal">Customer Uploaded Images</span>
+                              <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded-full">
+                                {allCustomerPhotos.length} Photo{allCustomerPhotos.length !== 1 ? 's' : ''}{r.sampleImage ? ' + 1 Sample' : ''}
+                              </span>
+                            </div>
+
+                            {/* Download All button if multiple images exist */}
+                            {(allCustomerPhotos.length + (r.sampleImage ? 1 : 0)) > 1 && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                                  for (let i = 0; i < allCustomerPhotos.length; i++) {
+                                    await downloadImage(getImageUrl(allCustomerPhotos[i]), `${safeName}_customer_photo_${i + 1}.jpg`);
+                                  }
+                                  if (r.sampleImage) {
+                                    await downloadImage(getImageUrl(r.sampleImage), `${safeName}_sample_reference.jpg`);
+                                  }
+                                  show('Started downloading all images ✓', 'success');
+                                }}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1 rounded-xl transition shadow-xs cursor-pointer"
+                              >
+                                <Download size={11} />
+                                Download All ({allCustomerPhotos.length + (r.sampleImage ? 1 : 0)})
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {/* Customer Photos (Up to 3) */}
+                            {allCustomerPhotos.map((photoPath, idx) => {
+                              const photoUrl = getImageUrl(photoPath);
+                              const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                              const filename = `${safeName}_customer_photo_${idx + 1}.jpg`;
+                              const title = `📸 Photo ${idx + 1} (${allCustomerPhotos.length > 1 ? `Subject Photo ${idx + 1}` : 'Customer Photo'})`;
+                              const isDl = downloadingImg === `photo-${r.id}-${idx}`;
+
+                              return (
+                                <div key={idx} className="bg-white/80 p-2.5 rounded-2xl border border-rose-200/60 flex flex-col justify-between space-y-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">{title}</p>
+                                    <p className="text-[10px] text-muted leading-tight mb-2">Subject to cast/recreate</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModalImg({ url: photoUrl, title, filename })}
+                                      className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer"
+                                      title="Click to zoom & inspect"
+                                    >
+                                      <img
+                                        src={photoUrl}
+                                        alt={title}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                                      />
+                                      <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                        Zoom / View ↗
+                                      </div>
+                                    </button>
                                   </div>
-                                </a>
-                                <div className="flex items-center gap-2 pt-0.5">
-                                  <a
-                                    href={photoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] text-rose-600 font-bold hover:underline"
-                                  >
-                                    View full size ↗
-                                  </a>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      setDownloadingImg(`photo-${r.id}`);
-                                      await downloadImage(photoUrl, filename);
-                                      setDownloadingImg(null);
-                                    }}
-                                    disabled={isDl}
-                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2.5 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
-                                    title="Download image to device"
-                                  >
-                                    {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
-                                    Download
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Slot B: Sample / inspiration image */}
-                          {r.sampleImage && (() => {
-                            const sampleUrl = getImageUrl(r.sampleImage);
-                            const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-                            const filename = `${safeName}_sample_reference.jpg`;
-                            const isDl = downloadingImg === `sample-${r.id}`;
-
-                            return (
-                              <div className="flex-1 space-y-2">
-                                <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">🖼️ Sample / Inspiration</p>
-                                <p className="text-[11px] text-muted leading-snug">Desired style or design reference</p>
-                                <a
-                                  href={sampleUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="relative group block"
-                                  title="Click to view full size"
-                                >
-                                  <img
-                                    src={sampleUrl}
-                                    alt="Sample reference"
-                                    className="w-full max-w-[180px] aspect-square object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
-                                  />
-                                  <div className="absolute inset-0 max-w-[180px] bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
-                                    Enlarge ↗
+                                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/50">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModalImg({ url: photoUrl, title, filename })}
+                                      className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      View ↗
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        setDownloadingImg(`photo-${r.id}-${idx}`);
+                                        await downloadImage(photoUrl, filename);
+                                        setDownloadingImg(null);
+                                      }}
+                                      disabled={isDl}
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
+                                      title="Download this photo"
+                                    >
+                                      {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                      Download
+                                    </button>
                                   </div>
-                                </a>
-                                <div className="flex items-center gap-2 pt-0.5">
-                                  <a
-                                    href={sampleUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] text-rose-600 font-bold hover:underline"
-                                  >
-                                    View full size ↗
-                                  </a>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      setDownloadingImg(`sample-${r.id}`);
-                                      await downloadImage(sampleUrl, filename);
-                                      setDownloadingImg(null);
-                                    }}
-                                    disabled={isDl}
-                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2.5 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
-                                    title="Download sample image to device"
-                                  >
-                                    {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
-                                    Download
-                                  </button>
                                 </div>
-                              </div>
-                            );
-                          })()}
+                              );
+                            })}
+
+                            {/* Sample / Inspiration Image */}
+                            {r.sampleImage && (() => {
+                              const sampleUrl = getImageUrl(r.sampleImage);
+                              const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                              const filename = `${safeName}_sample_reference.jpg`;
+                              const title = '🖼️ Sample / Inspiration Design';
+                              const isDl = downloadingImg === `sample-${r.id}`;
+
+                              return (
+                                <div className="bg-white/80 p-2.5 rounded-2xl border border-rose-200/60 flex flex-col justify-between space-y-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">{title}</p>
+                                    <p className="text-[10px] text-muted leading-tight mb-2">Desired style / flowers / layout</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModalImg({ url: sampleUrl, title, filename })}
+                                      className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer"
+                                      title="Click to zoom & inspect"
+                                    >
+                                      <img
+                                        src={sampleUrl}
+                                        alt={title}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                                      />
+                                      <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                        Zoom / View ↗
+                                      </div>
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/50">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModalImg({ url: sampleUrl, title, filename })}
+                                      className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      View ↗
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        setDownloadingImg(`sample-${r.id}`);
+                                        await downloadImage(sampleUrl, filename);
+                                        setDownloadingImg(null);
+                                      }}
+                                      disabled={isDl}
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
+                                      title="Download sample reference"
+                                    >
+                                      {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                      Download
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     <ChatThread request={r} onUpdated={handleUpdated} />
                   </div>
                 )}
               </div>
-            );
           })}
+        </div>
+      )}
+
+      {/* Image Preview Lightbox Modal */}
+      {previewModalImg && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewModalImg(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full p-5 overflow-hidden shadow-2xl relative animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-line mb-3">
+              <h3 className="font-semibold text-sm text-charcoal">{previewModalImg.title}</h3>
+              <button
+                onClick={() => setPreviewModalImg(null)}
+                className="w-8 h-8 rounded-full bg-sand/60 hover:bg-rose-100 flex items-center justify-center text-charcoal font-bold transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[68vh] flex items-center justify-center overflow-auto rounded-2xl bg-neutral-900/5 p-2 border border-line">
+              <img
+                src={previewModalImg.url}
+                alt={previewModalImg.title}
+                className="max-h-[62vh] w-auto max-w-full object-contain rounded-xl shadow-sm"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-3 border-t border-line mt-3">
+              <a
+                href={previewModalImg.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-rose-600 font-bold hover:underline inline-flex items-center gap-1"
+              >
+                Open in new tab ↗
+              </a>
+              <button
+                type="button"
+                onClick={() => downloadImage(previewModalImg.url, previewModalImg.filename)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
+              >
+                <Download size={13} />
+                Download Image
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
