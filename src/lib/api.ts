@@ -264,12 +264,36 @@ export const orders = {
 // ── Custom Orders ─────────────────────────────────────────────────────────────
 
 export const customOrders = {
-  async submit(input: Omit<CustomOrderRequest, 'id' | 'status' | 'createdAt' | 'adminReply' | 'repliedAt' | 'messages'>): Promise<CustomOrderRequest> {
-    const data = await req<{ request: CustomOrderRequest }>('/custom-orders', {
+  async submit(
+    input: Omit<CustomOrderRequest, 'id' | 'status' | 'createdAt' | 'adminReply' | 'repliedAt' | 'messages'> & {
+      referenceImageFile?: File | null;
+      sampleImageFile?: File | null;
+    }
+  ): Promise<CustomOrderRequest> {
+    const token = getToken();
+    const formData = new FormData();
+
+    // Text fields
+    const textFields = ['name','email','phone','productType','colors','yarnType','size',
+      'quantity','budget','deadline','description','agreedPrice','linkedOrderId'] as const;
+    for (const key of textFields) {
+      const val = (input as any)[key];
+      if (val !== undefined && val !== null) formData.append(key, String(val));
+    }
+
+    // File fields — real file uploads (saved to /uploads on server)
+    if (input.referenceImageFile) formData.append('referenceImage', input.referenceImageFile);
+    if (input.sampleImageFile)    formData.append('sampleImage',    input.sampleImageFile);
+
+    const res = await fetch(`${BASE}/custom-orders`, {
       method: 'POST',
-      body: JSON.stringify(input),
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
     });
-    return data.request;
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(body.message ?? `API error ${res.status}`, res.status);
+    return body.request;
   },
   async listMy(): Promise<CustomOrderRequest[]> {
     const data = await req<{ requests: CustomOrderRequest[] }>('/custom-orders/my');

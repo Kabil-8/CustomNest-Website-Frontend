@@ -169,7 +169,8 @@ export interface CustomOrderRequest {
   budget: string;
   deadline: string;
   description: string;
-  referenceImage?: string;
+  referenceImage?: string;  // Customer's own photo (person/pet to recreate)
+  sampleImage?: string;     // Inspiration/sample reference image
   status: 'New' | 'In Review' | 'Quoted' | 'Accepted' | 'Declined';
   agreedPrice?: number | null;
   linkedOrderId?: string | null;

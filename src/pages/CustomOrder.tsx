@@ -82,8 +82,14 @@ export default function CustomOrder() {
   const { user, isLoading } = useAuth();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [fileName, setFileName] = useState('');
+
+  // ── Two image upload slots ─────────────────────────────────────────────────
+  // Slot 1: Customer's own photo (the person/pet/thing to be recreated)
+  const [refFile, setRefFile]       = useState<File | null>(null);
+  const [refPreview, setRefPreview] = useState<string | null>(null);
+  // Slot 2: Sample / inspiration image (what they want it to look like)
+  const [sampleFile, setSampleFile]       = useState<File | null>(null);
+  const [samplePreview, setSamplePreview] = useState<string | null>(null);
 
   // ── Live color palette from DB ────────────────────────────────────────────
   const [colorPalette, setColorPalette] = useState<ApiColor[]>([]);
@@ -124,30 +130,31 @@ export default function CustomOrder() {
 
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  // ── File handlers ────────────────────────────────────────────────────────
+  function makeFileHandler(
+    setFile: (f: File | null) => void,
+    setPreview: (p: string | null) => void
+  ) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
       if (file.size > 5 * 1024 * 1024) {
         show('Please select an image smaller than 5MB.', 'error');
         return;
       }
-      setFileName(file.name);
+      setFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFilePreview(reader.result);
-        }
+        if (typeof reader.result === 'string') setPreview(reader.result);
       };
       reader.readAsDataURL(file);
-    }
-  };
+      // Reset the input value so the same file can be re-selected after removal
+      e.target.value = '';
+    };
+  }
 
-  const handleRemoveFile = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setFilePreview(null);
-    setFileName('');
-  };
+  const handleRefFileChange    = makeFileHandler(setRefFile,    setRefPreview);
+  const handleSampleFileChange = makeFileHandler(setSampleFile, setSamplePreview);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +211,8 @@ export default function CustomOrder() {
         name: finalName,
         phone: finalPhone,
         description: finalDesc,
-        referenceImage: filePreview || undefined,
+        referenceImageFile: refFile    || null,
+        sampleImageFile:    sampleFile || null,
       });
       setSubmitted(true);
       show('Your custom request has been submitted!', 'success');
@@ -627,40 +635,29 @@ export default function CustomOrder() {
                     )}
                   </div>
 
-                  {/* 7. Reference Photo Upload Dropzone */}
-                  <div>
-                    <label className="label">7. Reference Image (Optional)</label>
-                    <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all duration-200 ${
-                      filePreview ? 'border-rose-400 bg-rose-50/50' : 'border-line hover:border-rose-300 bg-ivory/40'
-                    }`}>
-                      {filePreview ? (
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-4 min-w-0">
-                            <img src={filePreview} alt="Reference Preview" className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm shrink-0" />
-                            <div className="text-left min-w-0">
-                              <p className="text-xs font-bold text-charcoal truncate">{fileName}</p>
-                              <p className="text-[11px] text-rose-600 font-semibold">Image uploaded cleanly • Click to change</p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleRemoveFile}
-                            className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-100/60 transition shrink-0 ml-2"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="w-12 h-12 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mx-auto mb-2">
-                            <Upload size={20} />
-                          </div>
-                          <p className="text-xs font-bold text-charcoal">Click or drag a reference image here</p>
-                          <p className="text-[11px] text-muted mt-0.5">JPG, PNG or WEBP up to 5MB</p>
-                        </div>
-                      )}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                    </label>
+                  {/* 7. Images Upload — two slots */}
+                  <div className="space-y-4">
+                    <p className="label">7. Upload Images <span className="text-muted font-normal">(Optional)</span></p>
+
+                    {/* Slot A: Customer's own photo */}
+                    <ImageUploadSlot
+                      label="Your Photo"
+                      hint="Upload a photo of the person, pet, or object to recreate"
+                      preview={refPreview}
+                      file={refFile}
+                      onChange={handleRefFileChange}
+                      onRemove={() => { setRefFile(null); setRefPreview(null); }}
+                    />
+
+                    {/* Slot B: Sample / inspiration reference */}
+                    <ImageUploadSlot
+                      label="Sample / Inspiration Photo"
+                      hint="Upload a sample image showing the style or design you want"
+                      preview={samplePreview}
+                      file={sampleFile}
+                      onChange={handleSampleFileChange}
+                      onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
+                    />
                   </div>
 
                   {/* Trust guarantees bar */}
@@ -737,6 +734,70 @@ function Field({
           <span>{error}</span>
         </p>
       )}
+    </div>
+  );
+}
+
+// ── ImageUploadSlot ─────────────────────────────────────────────────────────
+function ImageUploadSlot({
+  label,
+  hint,
+  preview,
+  file,
+  onChange,
+  onRemove,
+}: {
+  label: string;
+  hint: string;
+  preview: string | null;
+  file: File | null;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-charcoal mb-1.5">{label}</p>
+      <label
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-5 cursor-pointer transition-all duration-200 ${
+          preview ? 'border-rose-400 bg-rose-50/50' : 'border-line hover:border-rose-300 bg-ivory/40'
+        }`}
+      >
+        {preview ? (
+          <div className="flex items-center justify-between w-full gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={preview}
+                alt={label}
+                className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm shrink-0"
+              />
+              <div className="text-left min-w-0">
+                <p className="text-xs font-bold text-charcoal truncate">{file?.name}</p>
+                <p className="text-[11px] text-rose-600 font-semibold mt-0.5">
+                  ✓ Ready to upload · Click to change
+                </p>
+                <p className="text-[11px] text-muted">{hint}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+              className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-100/60 transition shrink-0"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-11 h-11 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mx-auto mb-2">
+              <Upload size={18} />
+            </div>
+            <p className="text-xs font-bold text-charcoal">{label}</p>
+            <p className="text-[11px] text-muted mt-0.5">{hint}</p>
+            <p className="text-[10px] text-muted/60 mt-1">JPG, PNG or WEBP up to 5MB</p>
+          </div>
+        )}
+        <input type="file" accept="image/*" className="hidden" onChange={onChange} />
+      </label>
     </div>
   );
 }

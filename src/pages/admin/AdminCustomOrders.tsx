@@ -4,7 +4,7 @@ import type { CustomOrderRequest } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { Skeleton } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
-import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save, Trash2 } from 'lucide-react';
+import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save, Trash2, Download } from 'lucide-react';
 
 const STATUSES: CustomOrderRequest['status'][] = [
   'New', 'In Review', 'Quoted', 'Accepted', 'Declined',
@@ -239,12 +239,48 @@ function ChatThread({ request, onUpdated }: {
   );
 }
 
+function getImageUrl(url?: string): string {
+  if (!url) return '';
+  if (url.startsWith('/uploads')) {
+    const base = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+    return `${base.replace(/\/$/, '')}${url}`;
+  }
+  return url;
+}
+
+async function downloadImage(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('Failed to fetch image');
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    // Fallback: trigger download link directly
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.download = filename;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminCustomOrders() {
   const { show } = useToast();
   const [requests, setRequests] = useState<CustomOrderRequest[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingImg, setDownloadingImg] = useState<string | null>(null);
 
   useEffect(() => { customOrderApi.listAll().then(setRequests); }, []);
 
@@ -378,41 +414,123 @@ export default function AdminCustomOrders() {
                       </p>
                     </div>
 
-                    {/* Reference Sample Photo */}
-                    {r.referenceImage && (
-                      <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <a
-                          href={r.referenceImage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="relative group block shrink-0"
-                          title="Click to view full image"
-                        >
-                          <img
-                            src={r.referenceImage}
-                            alt="Customer sample reference"
-                            className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
-                          />
-                          <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
-                            Enlarge ↗
-                          </div>
-                        </a>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-charcoal">Customer Sample / Reference Photo</span>
-                            <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded-full">Uploaded with request</span>
-                          </div>
-                          <p className="text-xs text-muted leading-relaxed mb-2">
-                            The customer attached this reference image as visual inspiration for their custom order.
-                          </p>
-                          <a
-                            href={r.referenceImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs text-rose-600 font-bold hover:text-rose-700 hover:underline"
-                          >
-                            Open full size image in new tab ↗
-                          </a>
+                    {/* Customer Images — shown only when present */}
+                    {(r.referenceImage || r.sampleImage) && (
+                      <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-charcoal">Customer Uploaded Images</span>
+                          <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded-full">Sent with request</span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          {/* Slot A: Customer's own photo */}
+                          {r.referenceImage && (() => {
+                            const photoUrl = getImageUrl(r.referenceImage);
+                            const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                            const filename = `${safeName}_customer_photo.jpg`;
+                            const isDl = downloadingImg === `photo-${r.id}`;
+
+                            return (
+                              <div className="flex-1 space-y-2">
+                                <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">📸 Their Photo</p>
+                                <p className="text-[11px] text-muted leading-snug">Person / pet / object to recreate</p>
+                                <a
+                                  href={photoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative group block"
+                                  title="Click to view full size"
+                                >
+                                  <img
+                                    src={photoUrl}
+                                    alt="Customer photo"
+                                    className="w-full max-w-[180px] aspect-square object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
+                                  />
+                                  <div className="absolute inset-0 max-w-[180px] bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                    Enlarge ↗
+                                  </div>
+                                </a>
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  <a
+                                    href={photoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] text-rose-600 font-bold hover:underline"
+                                  >
+                                    View full size ↗
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setDownloadingImg(`photo-${r.id}`);
+                                      await downloadImage(photoUrl, filename);
+                                      setDownloadingImg(null);
+                                    }}
+                                    disabled={isDl}
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2.5 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
+                                    title="Download image to device"
+                                  >
+                                    {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Slot B: Sample / inspiration image */}
+                          {r.sampleImage && (() => {
+                            const sampleUrl = getImageUrl(r.sampleImage);
+                            const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                            const filename = `${safeName}_sample_reference.jpg`;
+                            const isDl = downloadingImg === `sample-${r.id}`;
+
+                            return (
+                              <div className="flex-1 space-y-2">
+                                <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">🖼️ Sample / Inspiration</p>
+                                <p className="text-[11px] text-muted leading-snug">Desired style or design reference</p>
+                                <a
+                                  href={sampleUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative group block"
+                                  title="Click to view full size"
+                                >
+                                  <img
+                                    src={sampleUrl}
+                                    alt="Sample reference"
+                                    className="w-full max-w-[180px] aspect-square object-cover rounded-xl border border-rose-200 shadow-sm group-hover:scale-105 transition duration-200"
+                                  />
+                                  <div className="absolute inset-0 max-w-[180px] bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                    Enlarge ↗
+                                  </div>
+                                </a>
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  <a
+                                    href={sampleUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] text-rose-600 font-bold hover:underline"
+                                  >
+                                    View full size ↗
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setDownloadingImg(`sample-${r.id}`);
+                                      await downloadImage(sampleUrl, filename);
+                                      setDownloadingImg(null);
+                                    }}
+                                    disabled={isDl}
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2.5 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
+                                    title="Download sample image to device"
+                                  >
+                                    {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
