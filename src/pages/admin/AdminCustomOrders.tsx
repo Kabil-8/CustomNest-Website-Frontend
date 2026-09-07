@@ -337,9 +337,12 @@ export default function AdminCustomOrders() {
                 }`}
               >
                 {/* header */}
-                <button
-                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer"
+                <div
+                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer select-none"
                   onClick={() => toggle(r.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggle(r.id); }}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {unread && <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
@@ -358,6 +361,8 @@ export default function AdminCustomOrders() {
                       </p>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
                     {r.resinOption && (
                       <span className="hidden lg:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[0.65rem] font-semibold">
                         ✨ {r.resinOption}
@@ -395,7 +400,7 @@ export default function AdminCustomOrders() {
                       : <ChevronDown size={16} className="text-muted" />
                     }
                   </div>
-                </button>
+                </div>
 
                 {/* expanded */}
                 {isOpen && (
@@ -594,6 +599,7 @@ export default function AdminCustomOrders() {
                   </div>
                 )}
               </div>
+            );
           })}
         </div>
       )}

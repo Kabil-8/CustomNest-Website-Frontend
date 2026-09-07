@@ -411,6 +411,9 @@ export default function ProductDetail() {
                         </span>
                       </button>
                     </div>
+                  </div>
+                )}
+
                 {/* ── Resin Setup Options (Resin Art alone) ────────────── */}
                 {isResinProduct && (
                   <div>
