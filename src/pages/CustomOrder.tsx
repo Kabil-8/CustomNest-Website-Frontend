@@ -59,9 +59,16 @@ const CATEGORY_PRESETS = [
   { id: 'special-combo', name: 'Special Combo Bouquet', image: '/images/categories/special-combo-bouquets.jpg' },
   { id: 'jumbo-flower', name: 'Jumbo Flower Bouquet', image: '/images/categories/jumbo-flower-bouquets.jpg' },
   { id: 'plushies', name: 'Plushies & Amigurumi', image: '/images/categories/plushies.jpg' },
-  { id: 'resin-frames', name: 'Resin Memory Frame', image: '/images/categories/resin-frames.jpg' },
+  { id: 'resin-frames', name: 'Resin Art & Memory Frame', image: '/images/categories/resin-frames.jpg' },
   { id: 'event-specific', name: 'Event & Occasion Gift', image: '/images/categories/event-specific.jpg' },
   { id: 'single-flowers', name: 'Single Crochet Flowers', image: '/images/categories/single-flowers.jpg' },
+];
+
+export const RESIN_OPTIONS = [
+  { value: 'Only Resin', label: 'Only Resin', desc: 'Handcrafted custom resin piece without accessories' },
+  { value: 'Resin and Stand', label: 'Resin and Stand', desc: 'Resin artwork + wooden/acrylic display stand' },
+  { value: 'Resin and Light', label: 'Resin and Light', desc: 'Resin artwork with integrated warm fairy LED glow' },
+  { value: 'Resin and Light and with Stand', label: 'Resin and Light with Stand', desc: 'Complete premium package: resin art + LED light + display stand' },
 ];
 
 const SIZE_OPTIONS = [
@@ -108,12 +115,15 @@ export default function CustomOrder() {
     productType: 'Special Combo Bouquet',
     colors: '',        // color name selected from DB palette
     yarnType: 'either' as 'normal' | 'acrylic' | 'either' | '',
+    resinOption: 'Only Resin', // 'Only Resin' | 'Resin and Stand' | 'Resin and Light' | 'Resin and Light and with Stand'
     size: 'Medium',
     quantity: 1,
     budget: 'Rs.1,000 - Rs.2,000',
     deadline: '',
     description: '',
   });
+
+  const isResin = form.productType.toLowerCase().includes('resin');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -211,6 +221,7 @@ export default function CustomOrder() {
         name: finalName,
         phone: finalPhone,
         description: finalDesc,
+        resinOption: isResin ? form.resinOption : undefined,
         referenceImageFile: refFile    || null,
         sampleImageFile:    sampleFile || null,
       });
@@ -389,12 +400,19 @@ export default function CustomOrder() {
                       <span className="text-muted">Size:</span>
                       <span className="font-semibold">{form.size}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted">Yarn Type:</span>
-                      <span className="font-semibold capitalize">
-                        {form.yarnType === 'either' ? 'No preference' : form.yarnType}
-                      </span>
-                    </div>
+                    {isResin ? (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Resin Package:</span>
+                        <span className="font-semibold text-rose-600">{form.resinOption}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-muted">Yarn Type:</span>
+                        <span className="font-semibold capitalize">
+                          {form.yarnType === 'either' ? 'No preference' : form.yarnType}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted">Budget Tier:</span>
                       <span className="font-semibold">{form.budget}</span>
@@ -404,8 +422,10 @@ export default function CustomOrder() {
                   <button
                     onClick={() => {
                       setSubmitted(false);
-                      setFilePreview(null);
-                      setFileName('');
+                      setRefFile(null);
+                      setRefPreview(null);
+                      setSampleFile(null);
+                      setSamplePreview(null);
                     }}
                     className="btn-primary"
                   >
@@ -503,35 +523,68 @@ export default function CustomOrder() {
                     )}
                   </div>
 
-                  {/* 3. Yarn Type Selector */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Layers size={15} className="text-rose-500" />
-                      <label className="label mb-0">3. Yarn Type Preference</label>
+                  {/* 3. Resin Art Package vs Yarn Type Selector */}
+                  {isResin ? (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={15} className="text-rose-500" />
+                        <label className="label mb-0">3. Resin Art Package / Setup <span className="text-rose-500">*</span></label>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {RESIN_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => update({ resinOption: opt.value })}
+                            className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                              form.resinOption === opt.value
+                                ? 'border-rose-500 bg-rose-50/70 shadow-sm ring-1 ring-rose-300/50'
+                                : 'border-line/70 bg-ivory/50 hover:bg-white hover:border-rose-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs font-bold text-charcoal">{opt.label}</p>
+                              {form.resinOption === opt.value && (
+                                <span className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px]">
+                                  <Check size={10} />
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[0.68rem] text-muted leading-relaxed">{opt.desc}</p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid sm:grid-cols-3 gap-3">
-                      {YARN_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => update({ yarnType: opt.value as typeof form.yarnType })}
-                          className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                            form.yarnType === opt.value
-                              ? 'border-rose-500 bg-rose-50/70 shadow-sm'
-                              : 'border-line/70 bg-ivory/50 hover:bg-white hover:border-rose-200'
-                          }`}
-                        >
-                          <p className="text-xs font-bold text-charcoal">{opt.label}</p>
-                          <p className="text-[0.65rem] text-muted mt-0.5 leading-relaxed">{opt.desc}</p>
-                          {form.yarnType === opt.value && (
-                            <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px]">
-                              <Check size={10} />
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                  ) : (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Layers size={15} className="text-rose-500" />
+                        <label className="label mb-0">3. Yarn Type Preference</label>
+                      </div>
+                      <div className="grid sm:grid-cols-3 gap-3">
+                        {YARN_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => update({ yarnType: opt.value as typeof form.yarnType })}
+                            className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                              form.yarnType === opt.value
+                                ? 'border-rose-500 bg-rose-50/70 shadow-sm'
+                                : 'border-line/70 bg-ivory/50 hover:bg-white hover:border-rose-200'
+                            }`}
+                          >
+                            <p className="text-xs font-bold text-charcoal">{opt.label}</p>
+                            <p className="text-[0.65rem] text-muted mt-0.5 leading-relaxed">{opt.desc}</p>
+                            {form.yarnType === opt.value && (
+                              <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px]">
+                                <Check size={10} />
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* 4. Size Selector */}
                   <div>

@@ -297,6 +297,7 @@ export default function AdminOrderDetail() {
                     <div className="mt-1 space-y-0.5">
                       <p className="text-xs text-rose-600 font-semibold">
                         {[
+                          item.customization.resinOption ? `Resin Setup: ${item.customization.resinOption}` : null,
                           item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
                           item.customization.color ? `Color: ${item.customization.color}` : null,
                           item.customization.size ? `Size: ${item.customization.size}` : null,

@@ -59,6 +59,7 @@ export interface Collection {
 export interface CustomizationChoice {
   color?: string;
   yarnType?: string;
+  resinOption?: string; // 'Only Resin' | 'Resin and Stand' | 'Resin and Light' | 'Resin and Light and with Stand'
   text?: string;
   size?: string;
   personalization?: string;
@@ -164,6 +165,7 @@ export interface CustomOrderRequest {
   productType: string;
   colors: string;
   yarnType?: 'normal' | 'acrylic' | 'either' | '';
+  resinOption?: string; // 'Only Resin' | 'Resin and Stand' | 'Resin and Light' | 'Resin and Light and with Stand'
   size: string;
   quantity: number;
   budget: string;

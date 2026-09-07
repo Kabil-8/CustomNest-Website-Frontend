@@ -274,7 +274,7 @@ export const customOrders = {
     const formData = new FormData();
 
     // Text fields
-    const textFields = ['name','email','phone','productType','colors','yarnType','size',
+    const textFields = ['name','email','phone','productType','colors','yarnType','resinOption','size',
       'quantity','budget','deadline','description','agreedPrice','linkedOrderId'] as const;
     for (const key of textFields) {
       const val = (input as any)[key];

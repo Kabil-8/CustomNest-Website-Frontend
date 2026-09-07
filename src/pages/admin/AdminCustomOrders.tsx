@@ -357,7 +357,11 @@ export default function AdminCustomOrders() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                    {r.resinOption && (
+                      <span className="hidden lg:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[0.65rem] font-semibold">
+                        ✨ {r.resinOption}
+                      </span>
+                    )}
                     {r.referenceImage && (
                       <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[0.65rem] font-semibold">
                         📷 Sample Photo
@@ -394,6 +398,14 @@ export default function AdminCustomOrders() {
                     <div className="grid sm:grid-cols-2 gap-2 text-sm bg-cream/40 rounded-2xl px-4 py-3 border border-line/60">
                       <p><span className="text-muted">Email:</span> {r.email}</p>
                       <p><span className="text-muted">Phone:</span> {r.phone}</p>
+                      {r.resinOption && (
+                        <p className="sm:col-span-2">
+                          <span className="text-muted">Resin Option:</span>{' '}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                            ✨ {r.resinOption}
+                          </span>
+                        </p>
+                      )}
                       {r.colors   && <p><span className="text-muted">Color:</span> {r.colors}</p>}
                       {r.yarnType && (r.yarnType as string) !== 'either' && (r.yarnType as string) !== '' && (
                         <p>
@@ -403,7 +415,7 @@ export default function AdminCustomOrders() {
                           </span>
                         </p>
                       )}
-                      {(r.yarnType as string) === 'either' && (
+                      {(r.yarnType as string) === 'either' && !r.resinOption && (
                         <p><span className="text-muted">Yarn Type:</span> <span className="text-muted italic">No preference</span></p>
                       )}
                       {r.size     && <p><span className="text-muted">Size:</span> <span className="font-semibold">{r.size}</span></p>}

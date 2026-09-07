@@ -255,8 +255,9 @@ export default function CustomOrderCheckout() {
                 )}
                 <div className="text-sm space-y-1">
                   <p className="font-semibold text-charcoal">{request.productType}</p>
+                  {request.resinOption && <p className="text-purple-700 font-semibold text-xs">✨ Resin Setup: {request.resinOption}</p>}
                   {request.colors   && <p className="text-muted">Colors: {request.colors}</p>}
-                  {request.yarnType && <p className="text-muted capitalize">Yarn: {request.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn'}</p>}
+                  {request.yarnType && !request.resinOption && <p className="text-muted capitalize">Yarn: {request.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn'}</p>}
                   {request.size     && <p className="text-muted">Size: {request.size}</p>}
                   <p className="text-muted">Qty: {quantity}</p>
                   <p className="text-muted text-xs leading-relaxed mt-1">{request.description}</p>

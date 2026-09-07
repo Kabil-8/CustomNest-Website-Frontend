@@ -47,7 +47,7 @@ export default function Cart() {
                       <p className="text-xs text-muted mt-0.5">{item.product.categoryLabel}</p>
                       {item.customization && (
                         <p className="text-xs text-muted mt-1">
-                          {[item.customization.yarnType, item.customization.color, item.customization.size, item.customization.personalization]
+                          {[item.customization.yarnType, item.customization.resinOption ? `Setup: ${item.customization.resinOption}` : null, item.customization.color, item.customization.size, item.customization.personalization]
                             .filter(Boolean)
                             .join(' · ')}
                         </p>

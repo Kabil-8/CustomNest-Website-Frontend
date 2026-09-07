@@ -25,6 +25,7 @@ export default function ProductDetail() {
 
   const [activeImage, setActiveImage]     = useState('');
   const [selectedYarnType, setSelectedYarnType] = useState<'normal' | 'acrylic'>('normal');
+  const [selectedResinOption, setSelectedResinOption] = useState<string>('Only Resin');
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize]   = useState('');
   const [customText, setCustomText]       = useState('');
@@ -131,6 +132,8 @@ export default function ProductDetail() {
     setActiveImage(galleryImages[nextIdx]);
   };
 
+  const isResinProduct = Boolean(product && (product.category === 'resin-frames' || product.name.toLowerCase().includes('resin')));
+
   const handleAddToCart = () => {
     if (!product) return;
     requireAuth(() => {
@@ -138,7 +141,8 @@ export default function ProductDetail() {
         { ...product, price: effectivePrice },
         quantity,
         {
-          yarnType: yarnLabel,
+          yarnType: isResinProduct ? undefined : yarnLabel,
+          resinOption: isResinProduct ? selectedResinOption : undefined,
           color: selectedColor || undefined,
           size:  selectedSize  || undefined,
           text:  customText   || undefined,
@@ -156,7 +160,8 @@ export default function ProductDetail() {
         { ...product, price: effectivePrice },
         quantity,
         {
-          yarnType: yarnLabel,
+          yarnType: isResinProduct ? undefined : yarnLabel,
+          resinOption: isResinProduct ? selectedResinOption : undefined,
           color: selectedColor || undefined,
           size:  selectedSize  || undefined,
           text:  customText   || undefined,
@@ -204,10 +209,10 @@ export default function ProductDetail() {
     );
   }
 
-  const hasYarnChoice = product.yarnType === 'both' || (Boolean(product.normalPrice) && Boolean(product.acrylicPrice));
+  const hasYarnChoice = !isResinProduct && (product.yarnType === 'both' || (Boolean(product.normalPrice) && Boolean(product.acrylicPrice)));
   const hasColors = product.availableColors && product.availableColors.length > 0;
   const hasSizes  = product.sizes && product.sizes.length > 0;
-  const hasCustomization = hasYarnChoice || hasColors || hasSizes || product.allowCustomName || product.customization?.textAllowed || !!product.customization;
+  const hasCustomization = hasYarnChoice || isResinProduct || hasColors || hasSizes || product.allowCustomName || product.customization?.textAllowed || !!product.customization;
 
   return (
     <div className="py-8 sm:py-12 min-h-screen">
@@ -405,6 +410,38 @@ export default function ProductDetail() {
                           ₹{product.acrylicPrice || (product.normalPrice ? product.normalPrice + 100 : product.price + 100)}
                         </span>
                       </button>
+                    </div>
+                {/* ── Resin Setup Options (Resin Art alone) ────────────── */}
+                {isResinProduct && (
+                  <div>
+                    <label className="label text-xs mb-2">
+                      Resin Setup Option
+                      <span className="ml-2 font-normal text-muted normal-case">— {selectedResinOption}</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { value: 'Only Resin', label: 'Only Resin', desc: 'Resin artwork without accessories' },
+                        { value: 'Resin and Stand', label: 'Resin and Stand', desc: 'Resin artwork + display stand' },
+                        { value: 'Resin and Light', label: 'Resin and Light', desc: 'Resin artwork + warm fairy lights' },
+                        { value: 'Resin and Light and with Stand', label: 'Resin and Light with Stand', desc: 'Resin artwork + lights + display stand' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedResinOption(opt.value)}
+                          className={`p-3 rounded-2xl border text-left transition-all ${
+                            selectedResinOption === opt.value
+                              ? 'border-rose-500 bg-rose-50/60 shadow-soft ring-1 ring-rose-300/50'
+                              : 'border-line bg-white hover:border-rose-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="font-semibold text-xs text-charcoal">{opt.label}</span>
+                            {selectedResinOption === opt.value && <Check size={13} className="text-rose-600" />}
+                          </div>
+                          <p className="text-[10px] text-muted">{opt.desc}</p>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

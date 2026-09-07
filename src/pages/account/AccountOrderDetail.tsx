@@ -97,7 +97,7 @@ export default function AccountOrderDetail() {
                   <p className="text-xs text-muted">Qty {item.quantity}</p>
                   {item.customization && (
                     <p className="text-xs text-rose-600 font-medium mt-0.5">
-                      {[item.customization.yarnType, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
+                      {[item.customization.yarnType, item.customization.resinOption, item.customization.color, item.customization.size].filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>
