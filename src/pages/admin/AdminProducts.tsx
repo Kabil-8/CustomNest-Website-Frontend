@@ -37,7 +37,7 @@ export default function AdminProducts() {
     customizable: true,
     allowCustomName: false,
     shippingCharge: '' as number | '',  // '' = not set (use global rate)
-    yarnType: 'both',
+    yarnType: 'normal',
     normalPrice: 499,
     acrylicPrice: 599,
     // Per-product colours (IDs of selected Color docs)
@@ -81,9 +81,9 @@ export default function AdminProducts() {
 
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
-    const yarnType = (p as any).yarnType || 'both';
-    const normalPrice = (p as any).normalPrice ?? (yarnType !== 'acrylic' ? p.price : 499);
-    const acrylicPrice = (p as any).acrylicPrice ?? (yarnType !== 'normal' ? ((p as any).normalPrice ? (p as any).normalPrice + 100 : (p.price ? p.price + 100 : 599)) : 599);
+    const yarnType = 'normal';
+    const normalPrice = (p as any).normalPrice ?? p.price;
+    const acrylicPrice = (p as any).acrylicPrice ?? (p.price ? p.price + 100 : 599);
     setFormData({
       name:           p.name,
       category:       p.category,
@@ -185,19 +185,12 @@ export default function AdminProducts() {
     }
 
     const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const yarnType = formData.yarnType;
-    const normalPrice = yarnType === 'acrylic' ? null : Number(formData.normalPrice);
-    const acrylicPrice = yarnType === 'normal' ? null : Number(formData.acrylicPrice);
+    const yarnType = 'normal';
+    const normalPrice = Number(formData.normalPrice);
+    const acrylicPrice = null;
 
     // Compute base selling price for shop display
-    let basePrice = Number(formData.price);
-    if (yarnType === 'normal' && normalPrice !== null) {
-      basePrice = normalPrice;
-    } else if (yarnType === 'acrylic' && acrylicPrice !== null) {
-      basePrice = acrylicPrice;
-    } else if (yarnType === 'both') {
-      basePrice = normalPrice !== null ? normalPrice : (Number(formData.price) || (acrylicPrice ? acrylicPrice : 0));
-    }
+    const basePrice = normalPrice || Number(formData.price);
 
     const payload: Record<string, unknown> = {
       name:         formData.name,
@@ -545,8 +538,8 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Category, Stock, Yarn Type */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Category & Stock */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label text-xs" htmlFor="p-cat">Category *</label>
                   <select
@@ -571,71 +564,28 @@ export default function AdminProducts() {
                     className="input"
                   />
                 </div>
-                <div>
-                  <label className="label text-xs" htmlFor="p-yarn">Yarn Type *</label>
-                  <select
-                    id="p-yarn"
-                    value={formData.yarnType}
-                    onChange={e => {
-                      const nextType = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        yarnType: nextType,
-                        price: nextType === 'acrylic' ? prev.acrylicPrice : prev.normalPrice,
-                      }));
-                    }}
-                    className="input cursor-pointer"
-                  >
-                    <option value="both">Both (Normal & Acrylic)</option>
-                    <option value="normal">Normal Yarn Only</option>
-                    <option value="acrylic">Acrylic Yarn Only</option>
-                  </select>
-                </div>
               </div>
 
-              {/* Yarn Prices */}
-              {formData.yarnType !== 'normal' && (
-                <div>
-                  <label className="label text-xs" htmlFor="p-acrylic">Acrylic Yarn Price (₹) *</label>
-                  <input
-                    id="p-acrylic"
-                    type="number"
-                    required
-                    value={formData.acrylicPrice}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setFormData(prev => ({
-                        ...prev,
-                        acrylicPrice: val,
-                        ...(prev.yarnType === 'acrylic' ? { price: val } : {}),
-                      }));
-                    }}
-                    className="input"
-                    placeholder="Price for acrylic yarn version"
-                  />
-                </div>
-              )}
-              {formData.yarnType !== 'acrylic' && (
-                <div>
-                  <label className="label text-xs" htmlFor="p-normal">Normal Yarn Price / Base Price (₹) *</label>
-                  <input
-                    id="p-normal"
-                    type="number"
-                    required
-                    value={formData.normalPrice}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setFormData(prev => ({
-                        ...prev,
-                        normalPrice: val,
-                        price: val,
-                      }));
-                    }}
-                    className="input"
-                    placeholder="Price for normal yarn version"
-                  />
-                </div>
-              )}
+              {/* Price */}
+              <div>
+                <label className="label text-xs" htmlFor="p-normal">Price (₹) *</label>
+                <input
+                  id="p-normal"
+                  type="number"
+                  required
+                  value={formData.normalPrice}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    setFormData(prev => ({
+                      ...prev,
+                      normalPrice: val,
+                      price: val,
+                    }));
+                  }}
+                  className="input"
+                  placeholder="Product price"
+                />
+              </div>
 
               {/* Compare-at price */}
               <div>

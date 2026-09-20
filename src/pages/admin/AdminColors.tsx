@@ -3,7 +3,7 @@ import { useToast } from '../../context/ToastContext';
 import { Spinner } from '../../components/ui';
 
 interface Color {
-  id: string;
+  _id: string;
   name: string;
   hexCode: string;
   image: string | null;
@@ -43,7 +43,7 @@ export default function AdminColors() {
     try {
       const token = localStorage.getItem('tcn_token');
       const url = editingColor
-        ? `http://localhost:5000/api/colors/${editingColor.id}`
+        ? `http://localhost:5000/api/colors/${editingColor._id}`
         : 'http://localhost:5000/api/colors';
       const method = editingColor ? 'PATCH' : 'POST';
       
@@ -161,7 +161,7 @@ export default function AdminColors() {
           </thead>
           <tbody>
             {colors.map((color) => (
-              <tr key={color.id} className="border-b border-line">
+              <tr key={color._id} className="border-b border-line">
                 <td className="p-4">
                   <div className="w-8 h-8 rounded-full border border-line" style={{ backgroundColor: color.hexCode }} />
                 </td>
@@ -174,7 +174,7 @@ export default function AdminColors() {
                 </td>
                 <td className="p-4 text-right">
                   <button onClick={() => openEdit(color)} className="text-rose-600 hover:text-rose-700 mr-3">Edit</button>
-                  <button onClick={() => handleDelete(color.id)} className="text-red-500 hover:text-red-600">Delete</button>
+                  <button onClick={() => handleDelete(color._id)} className="text-red-500 hover:text-red-600">Delete</button>
                 </td>
               </tr>
             ))}

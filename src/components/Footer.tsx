@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { StitchDivider } from './ui';
 import { InstagramIcon, FacebookIcon } from './SocialIcons';
 
@@ -59,11 +59,8 @@ export function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted">
           <p>© {new Date().getFullYear()} TheCustomNest. All rights reserved.</p>
           <div className="flex items-center gap-5">
-            <a href="mailto:hello@thecustomnest.com" className="flex items-center gap-1.5 hover:text-rose-600">
-              <Mail size={14} /> hello@thecustomnest.com
-            </a>
-            <a href="tel:+910000000000" className="flex items-center gap-1.5 hover:text-rose-600">
-              <Phone size={14} /> +91 00000 00000
+            <a href="mailto:thecustomnest2023@gmail.com" className="flex items-center gap-1.5 hover:text-rose-600">
+              <Mail size={14} /> thecustomnest2023@gmail.com
             </a>
           </div>
         </div>

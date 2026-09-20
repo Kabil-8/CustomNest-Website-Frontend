@@ -57,7 +57,7 @@ export const COLLECTIONS: Collection[] = [
   },
   {
     slug: 'flower-pots',
-    name: 'Potted Flower Displays',
+    name: 'Crochet Pots',
     tagline: 'Cute crochet plants & desk decor',
     image: '/images/categories/flower-pots.jpg',
   },
@@ -96,7 +96,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     slug: 'flower-pots',
-    name: 'Potted Flower Arrangements',
+    name: 'Crochet Pots',
     collection: 'flower-pots',
     image: '/images/categories/flower-pots.jpg',
   },
@@ -198,7 +198,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     slug: 'beads',
-    name: 'Beaded Details',
+    name: 'Bead Bracelets',
     collection: 'customised-gifts',
     image: '/images/categories/beads.jpg',
   },

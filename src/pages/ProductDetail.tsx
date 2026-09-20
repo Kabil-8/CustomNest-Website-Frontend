@@ -24,7 +24,7 @@ export default function ProductDetail() {
   const { user } = useAuth();
 
   const [activeImage, setActiveImage]     = useState('');
-  const [selectedYarnType, setSelectedYarnType] = useState<'normal' | 'acrylic'>('normal');
+
   const [selectedResinOption, setSelectedResinOption] = useState<string>('Only Resin');
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize]   = useState('');
@@ -44,8 +44,6 @@ export default function ProductDetail() {
   useEffect(() => {
     if (product) {
       setActiveImage(product.image);
-      if (product.yarnType === 'acrylic') setSelectedYarnType('acrylic');
-      else setSelectedYarnType('normal');
     }
   }, [product]);
 
@@ -101,24 +99,11 @@ export default function ProductDetail() {
   const activeIndex = galleryImages.indexOf(activeImage);
   const currentIdx = activeIndex >= 0 ? activeIndex : 0;
 
-  // Compute effective base price according to yarn type
-  let basePrice = product?.price ?? 0;
-  if (product) {
-    if (selectedYarnType === 'acrylic' && product.acrylicPrice) {
-      basePrice = product.acrylicPrice;
-    } else if (selectedYarnType === 'normal' && product.normalPrice) {
-      basePrice = product.normalPrice;
-    } else if (product.normalPrice) {
-      basePrice = product.normalPrice;
-    }
-  }
+  // Single price — no yarn type differentiation
+  const basePrice = product?.normalPrice ?? product?.price ?? 0;
 
   const selectedSizeObj = product?.sizes?.find(s => s.label === selectedSize);
   const effectivePrice = basePrice + (selectedSizeObj?.priceModifier ?? 0);
-
-  const yarnLabel = product?.yarnType === 'both' || (product?.normalPrice && product?.acrylicPrice)
-    ? (selectedYarnType === 'acrylic' ? 'Acrylic Yarn' : 'Normal Yarn')
-    : (product?.yarnType === 'acrylic' ? 'Acrylic Yarn' : product?.yarnType === 'normal' ? 'Normal Yarn' : undefined);
 
   const handlePrevGallery = () => {
     if (galleryImages.length <= 1) return;
@@ -141,7 +126,6 @@ export default function ProductDetail() {
         { ...product, price: effectivePrice },
         quantity,
         {
-          yarnType: isResinProduct ? undefined : yarnLabel,
           resinOption: isResinProduct ? selectedResinOption : undefined,
           color: selectedColor || undefined,
           size:  selectedSize  || undefined,
@@ -160,7 +144,6 @@ export default function ProductDetail() {
         { ...product, price: effectivePrice },
         quantity,
         {
-          yarnType: isResinProduct ? undefined : yarnLabel,
           resinOption: isResinProduct ? selectedResinOption : undefined,
           color: selectedColor || undefined,
           size:  selectedSize  || undefined,
@@ -209,10 +192,9 @@ export default function ProductDetail() {
     );
   }
 
-  const hasYarnChoice = !isResinProduct && (product.yarnType === 'both' || (Boolean(product.normalPrice) && Boolean(product.acrylicPrice)));
   const hasColors = product.availableColors && product.availableColors.length > 0;
   const hasSizes  = product.sizes && product.sizes.length > 0;
-  const hasCustomization = hasYarnChoice || isResinProduct || hasColors || hasSizes || product.allowCustomName || product.customization?.textAllowed || !!product.customization;
+  const hasCustomization = isResinProduct || hasColors || hasSizes || product.allowCustomName || product.customization?.textAllowed || !!product.customization;
 
   return (
     <div className="py-8 sm:py-12 min-h-screen">
@@ -366,53 +348,7 @@ export default function ProductDetail() {
                   <span>Customization Options</span>
                 </div>
 
-                {/* ── Yarn Material Selection ────────────── */}
-                {hasYarnChoice && (
-                  <div>
-                    <label className="label text-xs mb-2">
-                      Yarn Material
-                      <span className="ml-2 font-normal text-muted normal-case">
-                        — {selectedYarnType === 'acrylic' ? 'Acrylic Yarn' : 'Normal / Milk Cotton Yarn'}
-                      </span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedYarnType('normal')}
-                        className={`p-3 rounded-2xl border text-left transition-all ${
-                          selectedYarnType === 'normal'
-                            ? 'border-rose-500 bg-rose-50/60 shadow-soft ring-1 ring-rose-300/50'
-                            : 'border-line bg-white hover:border-rose-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="font-semibold text-xs text-charcoal">Normal Yarn</span>
-                          {selectedYarnType === 'normal' && <Check size={13} className="text-rose-600" />}
-                        </div>
-                        <span className="text-xs font-display text-rose-600">
-                          ₹{product.normalPrice || product.price}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedYarnType('acrylic')}
-                        className={`p-3 rounded-2xl border text-left transition-all ${
-                          selectedYarnType === 'acrylic'
-                            ? 'border-rose-500 bg-rose-50/60 shadow-soft ring-1 ring-rose-300/50'
-                            : 'border-line bg-white hover:border-rose-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="font-semibold text-xs text-charcoal">Acrylic Yarn</span>
-                          {selectedYarnType === 'acrylic' && <Check size={13} className="text-rose-600" />}
-                        </div>
-                        <span className="text-xs font-display text-rose-600">
-                          ₹{product.acrylicPrice || (product.normalPrice ? product.normalPrice + 100 : product.price + 100)}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* ── Resin Setup Options (Resin Art alone) ────────────── */}
                 {isResinProduct && (

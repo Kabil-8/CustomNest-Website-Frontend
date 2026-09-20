@@ -16,7 +16,6 @@ import {
   Lock,
   LogIn,
   Loader2,
-  Layers,
   Ruler,
   AlertCircle,
 } from 'lucide-react';
@@ -78,11 +77,6 @@ const SIZE_OPTIONS = [
   { label: 'Custom', desc: 'Specify in description' },
 ];
 
-const YARN_OPTIONS = [
-  { value: 'normal',  label: 'Normal Yarn',  desc: 'Soft milk cotton — matte, gentle finish' },
-  { value: 'acrylic', label: 'Acrylic Yarn', desc: 'Vibrant & durable — great for bold colors' },
-  { value: 'either',  label: 'No Preference', desc: 'Let us pick the best for your piece' },
-];
 
 export default function CustomOrder() {
   const { show } = useToast();
@@ -120,7 +114,7 @@ export default function CustomOrder() {
     phone: '',
     productType: 'Special Combo Bouquet',
     colors: '',        // color name selected from DB palette
-    yarnType: 'either' as 'normal' | 'acrylic' | 'either' | '',
+    yarnType: 'normal' as 'normal' | 'acrylic' | 'either' | '',
     resinOption: 'Only Resin', // 'Only Resin' | 'Resin and Stand' | 'Resin and Light' | 'Resin and Light and with Stand'
     size: 'Medium',
     quantity: 1,
@@ -410,17 +404,10 @@ export default function CustomOrder() {
                       <span className="text-muted">Size:</span>
                       <span className="font-semibold">{form.size}</span>
                     </div>
-                    {isResin ? (
+                    {isResin && (
                       <div className="flex justify-between">
                         <span className="text-muted">Resin Package:</span>
                         <span className="font-semibold text-rose-600">{form.resinOption}</span>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between">
-                        <span className="text-muted">Yarn Type:</span>
-                        <span className="font-semibold capitalize">
-                          {form.yarnType === 'either' ? 'No preference' : form.yarnType}
-                        </span>
                       </div>
                     )}
                     <div className="flex justify-between">
@@ -534,7 +521,7 @@ export default function CustomOrder() {
                   </div>
 
                   {/* 3. Resin Art Package vs Yarn Type Selector */}
-                  {isResin ? (
+                  {isResin && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <Sparkles size={15} className="text-rose-500" />
@@ -561,35 +548,6 @@ export default function CustomOrder() {
                               )}
                             </div>
                             <p className="text-[0.68rem] text-muted leading-relaxed">{opt.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Layers size={15} className="text-rose-500" />
-                        <label className="label mb-0">3. Yarn Type Preference</label>
-                      </div>
-                      <div className="grid sm:grid-cols-3 gap-3">
-                        {YARN_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => update({ yarnType: opt.value as typeof form.yarnType })}
-                            className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                              form.yarnType === opt.value
-                                ? 'border-rose-500 bg-rose-50/70 shadow-sm'
-                                : 'border-line/70 bg-ivory/50 hover:bg-white hover:border-rose-200'
-                            }`}
-                          >
-                            <p className="text-xs font-bold text-charcoal">{opt.label}</p>
-                            <p className="text-[0.65rem] text-muted mt-0.5 leading-relaxed">{opt.desc}</p>
-                            {form.yarnType === opt.value && (
-                              <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px]">
-                                <Check size={10} />
-                              </span>
-                            )}
                           </button>
                         ))}
                       </div>

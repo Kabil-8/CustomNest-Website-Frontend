@@ -19,9 +19,6 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
   const { requireAuth } = useAuthGate();
   const { show } = useToast();
 
-  const [selectedYarnType, setSelectedYarnType] = useState<'normal' | 'acrylic'>(
-    product?.yarnType === 'acrylic' ? 'acrylic' : 'normal'
-  );
   const [selectedColor, setSelectedColor] = useState('');
   const [customText, setCustomText] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -29,30 +26,17 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
 
   if (!product) return null;
 
-  const hasYarnChoice = product.yarnType === 'both' || (Boolean(product.normalPrice) && Boolean(product.acrylicPrice));
-
-  let basePrice = product.price;
-  if (selectedYarnType === 'acrylic' && product.acrylicPrice) {
-    basePrice = product.acrylicPrice;
-  } else if (selectedYarnType === 'normal' && product.normalPrice) {
-    basePrice = product.normalPrice;
-  } else if (product.normalPrice) {
-    basePrice = product.normalPrice;
-  }
+  // Single price — no yarn type differentiation
+  const basePrice = product.normalPrice ?? product.price;
 
   const allImages = product.images && product.images.length > 0 ? product.images : [product.image];
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const wished = isWishlisted(product.id);
 
-  const yarnLabel = hasYarnChoice
-    ? (selectedYarnType === 'acrylic' ? 'Acrylic Yarn' : 'Normal Yarn')
-    : (product.yarnType === 'acrylic' ? 'Acrylic Yarn' : product.yarnType === 'normal' ? 'Normal Yarn' : undefined);
-
   const handleAddToCart = () => {
     requireAuth(() => {
       addItem({ ...product, price: basePrice }, quantity, {
-        yarnType: yarnLabel,
         color: selectedColor || undefined,
         text: customText || undefined,
         size: selectedSize || undefined,
@@ -191,38 +175,7 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                     {product.description}
                   </p>
 
-                  {/* Yarn Material Selection */}
-                  {hasYarnChoice && (
-                    <div className="mb-4">
-                      <label className="label text-[0.68rem] mb-1.5">Yarn Material</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedYarnType('normal')}
-                          className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all ${
-                            selectedYarnType === 'normal'
-                              ? 'bg-rose-50 border-rose-500 text-rose-700 font-semibold shadow-soft ring-1 ring-rose-300/40'
-                              : 'bg-white text-charcoal border-line hover:border-rose-300'
-                          }`}
-                        >
-                          <div className="text-[0.68rem] text-charcoal">Normal Yarn</div>
-                          <div className="text-xs text-rose-600 font-bold">₹{product.normalPrice || product.price}</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedYarnType('acrylic')}
-                          className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all ${
-                            selectedYarnType === 'acrylic'
-                              ? 'bg-rose-50 border-rose-500 text-rose-700 font-semibold shadow-soft ring-1 ring-rose-300/40'
-                              : 'bg-white text-charcoal border-line hover:border-rose-300'
-                          }`}
-                        >
-                          <div className="text-[0.68rem] text-charcoal">Acrylic Yarn</div>
-                          <div className="text-xs text-rose-600 font-bold">₹{product.acrylicPrice || (product.normalPrice ? product.normalPrice + 100 : product.price + 100)}</div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Customization color */}
                   {product.customization?.colors && product.customization.colors.length > 0 && (
