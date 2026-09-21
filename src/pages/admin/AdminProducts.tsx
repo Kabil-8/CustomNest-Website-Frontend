@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle, Palette, Ruler, PlusCircle, Home as HomeIcon, Award } from 'lucide-react';
 import { productApi, normalizeProduct, listActiveColors, type ApiCategory, type ApiColor } from '../../lib/productApi';
+import { compressImage } from '../../lib/imageUtils';
 import type { Product } from '../../types';
 import { useToast } from '../../context/ToastContext';
 
@@ -120,25 +121,32 @@ export default function AdminProducts() {
     }
   };
 
-  // ── Image upload ──────────────────────────────────────────────────────────
-  const handleImageFilesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Image upload with browser-side compression ─────────────────────────────
+  const [compressingImages, setCompressingImages] = useState(false);
+
+  const handleImageFilesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     const remaining = 3 - formData.images.length;
     if (remaining <= 0) { show('Maximum 3 images allowed.', 'error'); return; }
-    files.slice(0, remaining).forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, reader.result as string].slice(0, 3),
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-    show(`${Math.min(files.length, remaining)} image(s) added 📸`, 'success');
-    e.target.value = '';
+
+    const toProcess = files.slice(0, remaining);
+    setCompressingImages(true);
+    try {
+      const compressedList = await Promise.all(
+        toProcess.map(file => compressImage(file, 1200, 1200, 0.82))
+      );
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...compressedList].slice(0, 3),
+      }));
+      show(`${compressedList.length} image(s) optimized & added 📸`, 'success');
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Failed to process image(s)', 'error');
+    } finally {
+      setCompressingImages(false);
+      e.target.value = '';
+    }
   };
 
   const handleRemoveImage = (i: number) =>
@@ -176,6 +184,10 @@ export default function AdminProducts() {
   // ── Save (create or update) ───────────────────────────────────────────────
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (compressingImages) {
+      show('Please wait for photos to finish optimizing.', 'error');
+      return;
+    }
     if (!formData.name.trim()) { show('Please enter a product name.', 'error'); return; }
     if (formData.images.length === 0) { show('Please upload at least one image.', 'error'); return; }
 
@@ -762,23 +774,34 @@ export default function AdminProducts() {
                     <ImageIcon size={16} />
                     <span>Product Images ({formData.images.length}/3)</span>
                   </div>
-                  {formData.images.length < 3 && (
+                  {formData.images.length < 3 && !compressingImages && (
                     <label className="btn-primary py-1.5 px-4 text-[0.7rem] cursor-pointer flex items-center gap-1.5">
                       <Upload size={13} />
                       <span>Upload Photo{formData.images.length > 0 ? ' (add more)' : ''}</span>
-                      <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" />
+                      <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                     </label>
                   )}
                 </div>
 
+                {compressingImages && (
+                  <div className="flex items-center gap-2.5 text-xs text-rose-700 bg-rose-50/90 border border-rose-200 px-3.5 py-2.5 rounded-xl animate-pulse">
+                    <Loader2 size={15} className="animate-spin text-rose-600 shrink-0" />
+                    <span>Optimizing and compressing high-resolution photo for fast loading...</span>
+                  </div>
+                )}
+
                 {formData.images.length === 0 ? (
-                  <label className="flex flex-col items-center justify-center gap-3 py-10 border-2 border-dashed border-rose-200 rounded-2xl cursor-pointer hover:bg-rose-50/60 transition-colors">
-                    <Upload size={28} className="text-rose-300" />
+                  <label className={`flex flex-col items-center justify-center gap-3 py-10 border-2 border-dashed border-rose-200 rounded-2xl transition-colors ${
+                    compressingImages ? 'opacity-60 cursor-not-allowed bg-rose-50/30' : 'cursor-pointer hover:bg-rose-50/60'
+                  }`}>
+                    {compressingImages ? <Loader2 size={28} className="text-rose-400 animate-spin" /> : <Upload size={28} className="text-rose-300" />}
                     <div className="text-center">
-                      <p className="text-xs font-semibold text-charcoal">Click to upload product photos</p>
-                      <p className="text-[0.68rem] text-muted mt-0.5">Up to 3 images — JPG, PNG accepted</p>
+                      <p className="text-xs font-semibold text-charcoal">
+                        {compressingImages ? 'Optimizing photo...' : 'Click to upload product photos'}
+                      </p>
+                      <p className="text-[0.68rem] text-muted mt-0.5">Up to 3 images — JPG, PNG, WEBP auto-compressed</p>
                     </div>
-                    <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" />
+                    <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                   </label>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
@@ -789,7 +812,8 @@ export default function AdminProducts() {
                           <button
                             type="button"
                             onClick={() => handleRemoveImage(i)}
-                            className="w-8 h-8 rounded-full bg-white text-rose-600 flex items-center justify-center shadow cursor-pointer"
+                            disabled={compressingImages}
+                            className="w-8 h-8 rounded-full bg-white text-rose-600 flex items-center justify-center shadow cursor-pointer disabled:opacity-50"
                           >
                             <X size={14} />
                           </button>
@@ -800,10 +824,14 @@ export default function AdminProducts() {
                       </div>
                     ))}
                     {formData.images.length < 3 && (
-                      <label className="aspect-square rounded-xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-rose-50 transition-colors">
-                        <Upload size={18} className="text-rose-300" />
-                        <span className="text-[0.65rem] text-muted font-semibold">Add Photo</span>
-                        <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" />
+                      <label className={`aspect-square rounded-xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-1.5 transition-colors ${
+                        compressingImages ? 'opacity-60 cursor-not-allowed bg-rose-50/30' : 'cursor-pointer hover:bg-rose-50'
+                      }`}>
+                        {compressingImages ? <Loader2 size={18} className="text-rose-400 animate-spin" /> : <Upload size={18} className="text-rose-300" />}
+                        <span className="text-[0.65rem] text-muted font-semibold">
+                          {compressingImages ? 'Optimizing…' : 'Add Photo'}
+                        </span>
+                        <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                       </label>
                     )}
                   </div>
@@ -892,13 +920,17 @@ export default function AdminProducts() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn-secondary py-3 text-xs cursor-pointer"
-                  disabled={saving}
+                  disabled={saving || compressingImages}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary py-3 px-6 text-xs flex items-center gap-2 cursor-pointer" disabled={saving}>
-                  {saving && <Loader2 size={14} className="animate-spin" />}
-                  {saving ? 'Saving…' : editingProduct ? 'Save Changes' : 'Create Product'}
+                <button
+                  type="submit"
+                  className="btn-primary py-3 px-6 text-xs flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  disabled={saving || compressingImages}
+                >
+                  {(saving || compressingImages) && <Loader2 size={14} className="animate-spin" />}
+                  {compressingImages ? 'Optimizing Photo…' : saving ? 'Saving…' : editingProduct ? 'Save Changes' : 'Create Product'}
                 </button>
               </div>
             </form>
