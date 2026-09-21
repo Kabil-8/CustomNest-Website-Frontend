@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { Spinner } from '../../components/ui';
 
+const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+
 interface Color {
   _id: string;
   name: string;
@@ -21,14 +23,18 @@ export default function AdminColors() {
   const fetchColors = async () => {
     try {
       const token = localStorage.getItem('tcn_token');
-      const res = await fetch('http://localhost:5000/api/colors', {
+      const res = await fetch(`${API_BASE}/colors`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? `Error ${res.status}`);
+      }
       const data = await res.json();
       setColors(data.colors || []);
     } catch (err) {
-      show('Failed to fetch colors', 'error');
+      show(`Failed to fetch colors: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -43,10 +49,10 @@ export default function AdminColors() {
     try {
       const token = localStorage.getItem('tcn_token');
       const url = editingColor
-        ? `http://localhost:5000/api/colors/${editingColor._id}`
-        : 'http://localhost:5000/api/colors';
+        ? `${API_BASE}/colors/${editingColor._id}`
+        : `${API_BASE}/colors`;
       const method = editingColor ? 'PATCH' : 'POST';
-      
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -56,16 +62,19 @@ export default function AdminColors() {
         credentials: 'include',
         body: JSON.stringify(form),
       });
-      
-      if (!res.ok) throw new Error('Failed to save color');
-      
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? `Error ${res.status}`);
+      }
+
       show(editingColor ? 'Color updated!' : 'Color created!', 'success');
       setShowForm(false);
       setEditingColor(null);
       setForm({ name: '', hexCode: '#FF0000', isActive: true });
       fetchColors();
     } catch (err) {
-      show('Failed to save color', 'error');
+      show(`Failed to save color: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 
@@ -73,15 +82,19 @@ export default function AdminColors() {
     if (!confirm('Delete this color?')) return;
     try {
       const token = localStorage.getItem('tcn_token');
-      await fetch(`http://localhost:5000/api/colors/${id}`, {
+      const res = await fetch(`${API_BASE}/colors/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? `Error ${res.status}`);
+      }
       show('Color deleted!', 'success');
       fetchColors();
     } catch (err) {
-      show('Failed to delete color', 'error');
+      show(`Failed to delete color: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 
@@ -105,8 +118,8 @@ export default function AdminColors() {
       {showForm && (
         <div className="card p-6 mb-6">
           <h2 className="font-display text-lg mb-4">{editingColor ? 'Edit Color' : 'Add New Color'}</h2>
-          <form onSubmit={handleSubmit} className="flex gap-4 items-end">
-            <div className="flex-1">
+          <form onSubmit={handleSubmit} className="flex gap-4 items-end flex-wrap">
+            <div className="flex-1 min-w-[160px]">
               <label className="label">Color Name</label>
               <input
                 className="input"
