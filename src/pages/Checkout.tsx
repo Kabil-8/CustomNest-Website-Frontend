@@ -25,7 +25,7 @@ function isTamilNadu(state: string): boolean {
 }
 
 export default function Checkout() {
-  const { items, subtotal, clear } = useCart();
+  const { items, subtotal, clear, updateCustomization } = useCart();
   const { user } = useAuth();
   const { show } = useToast();
   const navigate = useNavigate();
@@ -50,35 +50,12 @@ export default function Checkout() {
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [availableColors, setAvailableColors] = useState<ApiColor[]>([]);
-  const [customerNotes, setCustomerNotes] = useState<string>(() => {
-    try {
-      return localStorage.getItem('tcn_order_notes') || '';
-    } catch {
-      return '';
-    }
-  });
 
   useEffect(() => {
     listActiveColors()
       .then(setAvailableColors)
       .catch(() => {});
   }, []);
-
-  const handleNotesChange = (val: string) => {
-    setCustomerNotes(val);
-    try {
-      localStorage.setItem('tcn_order_notes', val);
-    } catch {}
-  };
-
-  const appendColorToNotes = (colorName: string) => {
-    const trimmed = customerNotes.trim();
-    const next = trimmed ? `${trimmed}, ${colorName}` : colorName;
-    setCustomerNotes(next);
-    try {
-      localStorage.setItem('tcn_order_notes', next);
-    } catch {}
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -147,6 +124,16 @@ export default function Checkout() {
     if (!user || !selectedAddress) return;
     setPlacing(true);
     try {
+      const compiledCustomerNotes = items
+        .map((i) => {
+          const c = (i.customization?.color || '').trim();
+          const s = (i.customization?.specialRequest || '').trim();
+          const note = [c, s].filter(Boolean).join(' | ');
+          return note ? `${i.product.name} (Qty ${i.quantity}): ${note}` : '';
+        })
+        .filter(Boolean)
+        .join('\n\n');
+
       const order = await ordersApi.create({
         userId: user.id,
         items: items.map((i) => ({
@@ -166,7 +153,7 @@ export default function Checkout() {
         customerEmail: user.email,
         paymentMethod: payMethod,
         isOuterState: outerState,
-        customerNotes: customerNotes.trim(),
+        customerNotes: compiledCustomerNotes,
       });
 
       try {
@@ -274,18 +261,108 @@ export default function Checkout() {
             <div className="card p-6 sm:p-8">
               <h2 className="font-display text-xl mb-5">Review Your Order</h2>
               <div className="flex flex-col gap-4 mb-6">
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-4">
-                    <img src={item.product.image} alt={item.product.name} className="w-16 h-16 rounded-lg object-cover bg-ivory" />
-                    <div className="flex-1 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium">{item.product.name}</p>
-                        <p className="text-xs text-muted">Qty {item.quantity}</p>
+                {items.map((item) => {
+                  const itemColor = item.customization?.color || '';
+                  const itemColorsList = (item.product.availableColors && item.product.availableColors.length > 0)
+                    ? item.product.availableColors
+                    : availableColors;
+
+                  const handleAppendColor = (colorName: string) => {
+                    const trimmed = (item.customization?.color || '').trim();
+                    const next = trimmed ? `${trimmed}, ${colorName}` : colorName;
+                    updateCustomization(item.id, { color: next });
+                  };
+
+                  return (
+                    <div key={item.id} className="border border-line/80 rounded-2xl p-4 sm:p-5 bg-white space-y-3.5 shadow-2xs">
+                      <div className="flex gap-4 items-start">
+                        <img
+                          src={item.product.image}
+                          alt={item.product.name}
+                          className="w-16 h-16 rounded-xl object-cover bg-ivory shrink-0 border border-line/50"
+                        />
+                        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-charcoal">{item.product.name}</p>
+                            <p className="text-xs text-muted">Qty {item.quantity}</p>
+                            {item.customization && (
+                              <p className="text-[11px] text-rose-600 font-medium mt-0.5">
+                                {[
+                                  item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
+                                  item.customization.resinOption ? `Setup: ${item.customization.resinOption}` : null,
+                                  item.customization.size ? `Size: ${item.customization.size}` : null,
+                                  item.customization.personalization ? `Name: ${item.customization.personalization}` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold">{formatPrice(item.product.price * item.quantity)}</span>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold">{formatPrice(item.product.price * item.quantity)}</span>
+
+                      {/* Per-Product Colour & Customization Note */}
+                      <div className="p-3.5 rounded-xl bg-rose-50/50 border border-rose-200/80 space-y-2.5">
+                        <div className="flex items-center justify-between flex-wrap gap-1.5">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                            <Palette size={14} className="text-rose-600 shrink-0" />
+                            <span>Colour Preference & Notes for this Product</span>
+                          </div>
+                          <span className="text-[0.62rem] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            Per Item
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-charcoal/80 leading-relaxed">
+                          Mention your preferred colours & expectations for this item (e.g. flower petals, center, wrap or theme).
+                        </p>
+
+                        {/* Quick Color Swatches */}
+                        {itemColorsList.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] text-muted">
+                              <span className="font-semibold text-charcoal uppercase tracking-wider">Available Colours</span>
+                              <span>Click to add</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                              {itemColorsList.map((c: any) => (
+                                <button
+                                  key={c._id || c.id || c.name}
+                                  type="button"
+                                  onClick={() => handleAppendColor(c.name)}
+                                  title={`Add "${c.name}" to notes`}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white border border-rose-200/70 hover:border-rose-400 hover:bg-rose-50 shadow-2xs transition cursor-pointer"
+                                >
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                                    style={{ backgroundColor: c.hexCode }}
+                                  />
+                                  <span className="text-charcoal">{c.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Textarea for this product's colour preference */}
+                        <div>
+                          <textarea
+                            rows={2}
+                            value={itemColor}
+                            onChange={(e) => updateCustomization(item.id, { color: e.target.value })}
+                            placeholder={
+                              item.quantity > 1
+                                ? 'e.g. 1st in Soft Pink (#4), 2nd in Sky Blue (#18)'
+                                : 'e.g. Petals in Soft Pink (#4) and center in Cream White (#12)'
+                            }
+                            className="input text-xs py-2 px-2.5 bg-white border-rose-200 focus:border-rose-400 focus:ring-rose-200 w-full"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="border-t border-line pt-4">
                 <p className="text-sm font-semibold mb-1">Delivering to</p>
@@ -293,66 +370,6 @@ export default function Checkout() {
                   {selectedAddress.fullName} · {selectedAddress.line1}, {selectedAddress.city}, {selectedAddress.state}{' '}
                   {selectedAddress.postalCode} · {selectedAddress.phone}
                 </p>
-              </div>
-
-              {/* Product Customization & Color Choices Note */}
-              <div className="border-t border-line pt-5 mt-5 space-y-3">
-                <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/60 border border-rose-200/90 space-y-3.5">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
-                      <Palette size={17} className="text-rose-600" />
-                      <span>Product Customization & Color Choices (Optional)</span>
-                    </div>
-                    <span className="text-[0.65rem] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      Artisan Review
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-charcoal/85 leading-relaxed">
-                    Check for the available colours below and mention the colours for the product of your choice if you need customisation (e.g. flower yarn colours, bouquet wrap, monogram or custom name tag).
-                  </p>
-
-                  {/* Available Colors Palette Quick Selection */}
-                  {availableColors.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between text-[0.68rem] text-muted">
-                        <span className="font-bold text-charcoal uppercase tracking-wider">Available Colours</span>
-                        <span>Click any colour to add to your note</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
-                        {availableColors.map((c) => (
-                          <button
-                            key={c._id}
-                            type="button"
-                            onClick={() => appendColorToNotes(c.name)}
-                            title={`Add "${c.name}" to notes`}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-rose-200/70 hover:border-rose-400 hover:bg-rose-50/80 shadow-2xs transition cursor-pointer"
-                          >
-                            <span
-                              className="w-3 h-3 rounded-full border border-black/10 shrink-0 shadow-2xs"
-                              style={{ backgroundColor: c.hexCode }}
-                            />
-                            <span className="text-[11px] text-charcoal font-medium">{c.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Notes Textarea */}
-                  <div>
-                    <textarea
-                      rows={3}
-                      value={customerNotes}
-                      onChange={(e) => handleNotesChange(e.target.value)}
-                      placeholder="e.g. For Tulip Bouquet: please use Soft Pink & Cream White petals. Name on ribbon: 'Sneha'"
-                      className="input text-xs py-2.5 bg-white border-rose-200 focus:border-rose-400 focus:ring-rose-200"
-                    />
-                    <p className="text-[0.65rem] text-muted mt-1">
-                      Our artisans will see your expectation note and prepare your order accordingly.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div className="flex gap-3 mt-6">

@@ -17,6 +17,7 @@ interface CartContextValue {
   addItem: (product: Product, quantity?: number, customization?: CustomizationChoice) => void;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
+  updateCustomization: (itemId: string, customization: Partial<CustomizationChoice>) => void;
   clear: () => void;
 }
 
@@ -86,6 +87,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items, persist]
   );
 
+  const updateCustomization = useCallback(
+    (itemId: string, patch: Partial<CustomizationChoice>) => {
+      persist(
+        items.map((i) => {
+          if (i.id !== itemId) return i;
+          return {
+            ...i,
+            customization: {
+              ...(i.customization || {}),
+              ...patch,
+            },
+          };
+        })
+      );
+    },
+    [items, persist]
+  );
+
   const clear = useCallback(() => persist([]), [persist]);
 
   const count = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
@@ -107,6 +126,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateCustomization,
         clear,
       }}
     >

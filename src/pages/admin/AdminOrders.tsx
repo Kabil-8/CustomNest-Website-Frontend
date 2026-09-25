@@ -521,15 +521,21 @@ export default function AdminOrders() {
                         </div>
                         <p className="text-[0.65rem] text-muted mt-0.5">Qty: {item.quantity}</p>
                         {item.customization && (
-                          <div className="mt-1 space-y-0.5">
+                          <div className="mt-1 space-y-1">
                             <p className="text-[0.65rem] text-rose-600 font-semibold">
                               {[
                                 item.customization.resinOption ? `Resin Setup: ${item.customization.resinOption}` : null,
                                 item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
-                                item.customization.color ? `Color: ${item.customization.color}` : null,
                                 item.customization.size ? `Size: ${item.customization.size}` : null,
+                                item.customization.personalization ? `Name: ${item.customization.personalization}` : null,
                               ].filter(Boolean).join(' · ')}
                             </p>
+                            {item.customization.color && (
+                              <div className="text-[0.7rem] bg-rose-50 border border-rose-200/90 rounded-lg px-2.5 py-1 text-charcoal">
+                                <span className="font-bold text-rose-800">🎨 Colour Preference: </span>
+                                <span className="font-semibold text-rose-950">{item.customization.color}</span>
+                              </div>
+                            )}
                             {item.customization.specialRequest && (
                               <p className="text-[0.65rem] text-charcoal/80 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100/60 leading-relaxed">
                                 <span className="font-semibold text-muted">Vision/Details:</span> {item.customization.specialRequest}

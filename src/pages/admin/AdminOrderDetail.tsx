@@ -312,15 +312,24 @@ export default function AdminOrderDetail() {
                   </div>
                   <p className="text-xs text-muted mt-0.5">Qty {item.quantity}</p>
                   {item.customization && (
-                    <div className="mt-1 space-y-0.5">
+                    <div className="mt-1 space-y-1.5">
                       <p className="text-xs text-rose-600 font-semibold">
                         {[
                           item.customization.resinOption ? `Resin Setup: ${item.customization.resinOption}` : null,
                           item.customization.yarnType ? (item.customization.yarnType === 'normal' ? 'Normal Yarn' : 'Acrylic Yarn') : null,
-                          item.customization.color ? `Color: ${item.customization.color}` : null,
                           item.customization.size ? `Size: ${item.customization.size}` : null,
+                          item.customization.personalization ? `Name: ${item.customization.personalization}` : null,
                         ].filter(Boolean).join(' · ')}
                       </p>
+                      {item.customization.color && (
+                        <div className="text-xs bg-rose-50/80 border border-rose-200/90 rounded-xl p-2.5 text-charcoal">
+                          <span className="font-bold text-rose-800 flex items-center gap-1.5 mb-0.5">
+                            <Palette size={13} className="text-rose-600" />
+                            <span>Product Colour Preference & Notes:</span>
+                          </span>
+                          <span className="font-medium text-charcoal/90 block whitespace-pre-wrap">{item.customization.color}</span>
+                        </div>
+                      )}
                       {item.customization.specialRequest && (
                         <p className="text-xs text-charcoal/80 bg-rose-50/50 p-2 rounded-xl border border-rose-100/70 leading-relaxed">
                           <span className="font-semibold text-muted">Customer Vision:</span> {item.customization.specialRequest}
