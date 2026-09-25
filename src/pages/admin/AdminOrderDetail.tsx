@@ -7,7 +7,7 @@ import { OrderTimeline } from '../../components/OrderTimeline';
 import { Badge, Skeleton, Spinner } from '../../components/ui';
 import { statusTone } from '../account/orderStatus';
 import { useToast } from '../../context/ToastContext';
-import { Truck, Save, Loader2, Trash2, Camera } from 'lucide-react';
+import { Truck, Save, Loader2, Trash2, Camera, Palette } from 'lucide-react';
 
 const STATUSES: OrderStatus[] = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
@@ -262,6 +262,24 @@ export default function AdminOrderDetail() {
         <p className="text-sm font-medium">{order.customerName || order.address?.fullName}</p>
         <p className="text-sm text-muted">{order.customerEmail}</p>
       </div>
+
+      {/* Customer Product Expectation & Color Customization Notes */}
+      {order.customerNotes && (
+        <div className="card p-6 bg-amber-50/80 border-2 border-amber-300 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-900 font-display text-lg">
+              <Palette size={20} className="text-amber-700" />
+              <h2>Customer Product Expectation & Color Choices</h2>
+            </div>
+            <span className="text-xs font-bold bg-amber-200/90 text-amber-900 px-3 py-1 rounded-full uppercase tracking-wider">
+              Customer Note
+            </span>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-amber-200 text-sm text-charcoal font-medium leading-relaxed whitespace-pre-wrap shadow-2xs">
+            {order.customerNotes}
+          </div>
+        </div>
+      )}
 
       <div className="card p-6">
         <h2 className="font-display text-lg mb-4">Items</h2>

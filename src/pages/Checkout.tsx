@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Smartphone } from 'lucide-react';
+import { Check, CreditCard, Smartphone, Palette } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { addresses as addressApi, orders as ordersApi } from '../lib/api';
+import { listActiveColors, type ApiColor } from '../lib/productApi';
+import { ensureWebImageFile } from '../lib/imageUtils';
 import { formatPrice, classNames } from '../lib/utils';
 import type { Address } from '../types';
 import { Breadcrumb, Spinner, EmptyState } from '../components/ui';
@@ -47,6 +49,36 @@ export default function Checkout() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [availableColors, setAvailableColors] = useState<ApiColor[]>([]);
+  const [customerNotes, setCustomerNotes] = useState<string>(() => {
+    try {
+      return localStorage.getItem('tcn_order_notes') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    listActiveColors()
+      .then(setAvailableColors)
+      .catch(() => {});
+  }, []);
+
+  const handleNotesChange = (val: string) => {
+    setCustomerNotes(val);
+    try {
+      localStorage.setItem('tcn_order_notes', val);
+    } catch {}
+  };
+
+  const appendColorToNotes = (colorName: string) => {
+    const trimmed = customerNotes.trim();
+    const next = trimmed ? `${trimmed}, ${colorName}` : colorName;
+    setCustomerNotes(next);
+    try {
+      localStorage.setItem('tcn_order_notes', next);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -134,8 +166,12 @@ export default function Checkout() {
         customerEmail: user.email,
         paymentMethod: payMethod,
         isOuterState: outerState,
-
+        customerNotes: customerNotes.trim(),
       });
+
+      try {
+        localStorage.removeItem('tcn_order_notes');
+      } catch {}
 
       // UPI QR Code - show QR and mark order as pending
       if (payMethod === 'upi-qr') {
@@ -258,6 +294,67 @@ export default function Checkout() {
                   {selectedAddress.postalCode} · {selectedAddress.phone}
                 </p>
               </div>
+
+              {/* Product Customization & Color Choices Note */}
+              <div className="border-t border-line pt-5 mt-5 space-y-3">
+                <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/60 border border-rose-200/90 space-y-3.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
+                      <Palette size={17} className="text-rose-600" />
+                      <span>Product Customization & Color Choices (Optional)</span>
+                    </div>
+                    <span className="text-[0.65rem] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Artisan Review
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-charcoal/85 leading-relaxed">
+                    Check for the available colours below and mention the colours for the product of your choice if you need customisation (e.g. flower yarn colours, bouquet wrap, monogram or custom name tag).
+                  </p>
+
+                  {/* Available Colors Palette Quick Selection */}
+                  {availableColors.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-[0.68rem] text-muted">
+                        <span className="font-bold text-charcoal uppercase tracking-wider">Available Colours</span>
+                        <span>Click any colour to add to your note</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                        {availableColors.map((c) => (
+                          <button
+                            key={c._id}
+                            type="button"
+                            onClick={() => appendColorToNotes(c.name)}
+                            title={`Add "${c.name}" to notes`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-rose-200/70 hover:border-rose-400 hover:bg-rose-50/80 shadow-2xs transition cursor-pointer"
+                          >
+                            <span
+                              className="w-3 h-3 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                              style={{ backgroundColor: c.hexCode }}
+                            />
+                            <span className="text-[11px] text-charcoal font-medium">{c.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes Textarea */}
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={customerNotes}
+                      onChange={(e) => handleNotesChange(e.target.value)}
+                      placeholder="e.g. For Tulip Bouquet: please use Soft Pink & Cream White petals. Name on ribbon: 'Sneha'"
+                      className="input text-xs py-2.5 bg-white border-rose-200 focus:border-rose-400 focus:ring-rose-200"
+                    />
+                    <p className="text-[0.65rem] text-muted mt-1">
+                      Our artisans will see your expectation note and prepare your order accordingly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setStep(0)} className="btn-secondary">
                   Back
@@ -350,11 +447,14 @@ export default function Checkout() {
                   )}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setPaymentScreenshot(file);
+                    onChange={async (e) => {
+                      const rawFile = e.target.files?.[0];
+                      if (rawFile) {
+                        const file = await ensureWebImageFile(rawFile);
+                        setPaymentScreenshot(file);
+                      }
                     }}
                   />
                 </label>

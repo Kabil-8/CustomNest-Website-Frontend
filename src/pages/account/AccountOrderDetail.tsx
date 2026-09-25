@@ -85,6 +85,17 @@ export default function AccountOrderDetail() {
         ) : null}
       </div>
 
+      {order.customerNotes && (
+        <div className="card p-5 bg-rose-50/50 border border-rose-200 space-y-1.5">
+          <p className="text-xs font-bold text-rose-800 flex items-center gap-1.5 uppercase tracking-wider">
+            <span>🎨 Your Customization & Color Request</span>
+          </p>
+          <p className="text-xs text-charcoal bg-white p-3 rounded-xl border border-rose-100 whitespace-pre-wrap leading-relaxed">
+            {order.customerNotes}
+          </p>
+        </div>
+      )}
+
       <div className="card p-6">
         <h2 className="font-display text-lg mb-4">Items</h2>
         <div className="flex flex-col gap-4">

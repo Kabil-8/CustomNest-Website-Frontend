@@ -8,6 +8,7 @@ import { addresses as addressApi, customOrders as customOrderApi, orders as orde
 import { classNames } from '../lib/utils';
 import type { Address, CustomOrderRequest } from '../types';
 import { Breadcrumb, Spinner } from '../components/ui';
+import { ensureWebImageFile } from '../lib/imageUtils';
 
 const STEPS = ['Address', 'Review', 'Payment'];
 
@@ -386,11 +387,14 @@ export default function CustomOrderCheckout() {
                 )}
                 <input 
                   type="file" 
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setPaymentScreenshot(file);
+                  onChange={async (e) => {
+                    const rawFile = e.target.files?.[0];
+                    if (rawFile) {
+                      const file = await ensureWebImageFile(rawFile);
+                      setPaymentScreenshot(file);
+                    }
                   }}
                 />
               </label>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save, Trash2, Camera } from 'lucide-react';
+import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save, Trash2, Camera, Palette } from 'lucide-react';
 import { orders as ordersApi } from '../../lib/api';
 import type { Order, OrderStatus } from '../../types';
 import { useToast } from '../../context/ToastContext';
@@ -198,6 +198,14 @@ export default function AdminOrders() {
                     <td className="py-3.5 px-4 font-bold text-charcoal font-mono">
                       <div>
                         <span>{o.orderNumber ?? o.id.slice(-10)}</span>
+                        {o.customerNotes && (
+                          <span
+                            title={`Customization Note: ${o.customerNotes}`}
+                            className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-rose-700 bg-rose-50 border border-rose-300 px-2 py-0.5 rounded-full mt-1 block w-fit"
+                          >
+                            🎨 Custom Note
+                          </span>
+                        )}
                         {o.paymentScreenshot ? (
                           <span className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1 block w-fit">
                             📷 Screenshot Uploaded
@@ -297,6 +305,24 @@ export default function AdminOrders() {
                 ✕
               </button>
             </div>
+
+            {/* Customer Product Expectation & Color Customization Notes */}
+            {selectedOrder.customerNotes && (
+              <div className="p-4 rounded-2xl bg-amber-50/80 border-2 border-amber-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                    <Palette size={15} className="text-amber-700" />
+                    <span>Customer Product Expectation & Color Choices</span>
+                  </div>
+                  <span className="text-[0.62rem] font-bold bg-amber-200/90 text-amber-900 px-2 py-0.5 rounded-full">
+                    Customer Note
+                  </span>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-amber-200 text-xs text-charcoal font-medium leading-relaxed whitespace-pre-wrap shadow-2xs">
+                  {selectedOrder.customerNotes}
+                </div>
+              </div>
+            )}
 
             {/* UPI Payment Screenshot Verification */}
             <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200 space-y-3">

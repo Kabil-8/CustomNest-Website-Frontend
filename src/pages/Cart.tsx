@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowRight, Palette } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
 import { Breadcrumb, EmptyState } from '../components/ui';
@@ -10,6 +10,13 @@ const SHIPPING_FEE = 50;
 
 export default function Cart() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const [cartNotes, setCartNotes] = useState<string>(() => {
+    try {
+      return localStorage.getItem('tcn_order_notes') || '';
+    } catch {
+      return '';
+    }
+  });
   const shipping = items.length === 0 || subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
   const total = subtotal + shipping;
 
@@ -84,6 +91,34 @@ export default function Cart() {
                 </div>
               </div>
             ))}
+
+            {/* Customization & Color Notes */}
+            <div className="card p-5 bg-rose-50/40 border border-rose-200/80 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
+                  <Palette size={15} className="text-rose-600" />
+                  <span>Product Customization & Color Notes</span>
+                </div>
+                <span className="text-[0.65rem] text-rose-600 font-semibold bg-rose-100/70 px-2 py-0.5 rounded-full">
+                  Optional
+                </span>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                Mention any colour combinations, flower yarn shades, or custom monogram name details for your order. You can also edit this at checkout.
+              </p>
+              <textarea
+                rows={2}
+                value={cartNotes}
+                onChange={(e) => {
+                  setCartNotes(e.target.value);
+                  try {
+                    localStorage.setItem('tcn_order_notes', e.target.value);
+                  } catch {}
+                }}
+                placeholder="e.g. Please use Soft Pink petals with Milk White wrap. Monogram name: 'Priya'"
+                className="input text-xs py-2 bg-white border-rose-200 focus:border-rose-400 focus:ring-rose-200"
+              />
+            </div>
           </div>
 
           <div className="card p-6 h-fit sticky top-24">

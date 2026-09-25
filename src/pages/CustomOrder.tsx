@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { customOrders as customOrderApi } from '../lib/api';
 import { listActiveColors, type ApiColor } from '../lib/productApi';
+import { ensureWebImageFile } from '../lib/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Eyebrow, Spinner, StitchDivider } from '../components/ui';
@@ -140,24 +141,30 @@ export default function CustomOrder() {
 
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
-  // ── File handlers ────────────────────────────────────────────────────────
+  // ── File handlers with HEIC conversion support ────────────────────────────
   function makeFileHandler(
     setFile: (f: File | null) => void,
     setPreview: (p: string | null) => void
   ) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        show('Please select an image smaller than 5MB.', 'error');
+    return async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const rawFile = e.target.files?.[0];
+      if (!rawFile) return;
+      if (rawFile.size > 15 * 1024 * 1024) {
+        show('Please select an image smaller than 15MB.', 'error');
         return;
       }
-      setFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') setPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const file = await ensureWebImageFile(rawFile);
+        setFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') setPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Failed to convert image:', err);
+        setFile(rawFile);
+      }
       // Reset the input value so the same file can be re-selected after removal
       e.target.value = '';
     };
@@ -870,10 +877,10 @@ function ImageUploadSlot({
             </div>
             <p className="text-xs font-bold text-charcoal">{label}</p>
             <p className="text-[11px] text-muted mt-0.5">{hint}</p>
-            <p className="text-[10px] text-muted/60 mt-1">JPG, PNG or WEBP up to 5MB</p>
+            <p className="text-[10px] text-muted/60 mt-1">JPG, PNG, WEBP or HEIC (Apple Photos) up to 15MB</p>
           </div>
         )}
-        <input type="file" accept="image/*" className="hidden" onChange={onChange} />
+        <input type="file" accept="image/*,.heic,.heif" className="hidden" onChange={onChange} />
       </label>
     </div>
   );

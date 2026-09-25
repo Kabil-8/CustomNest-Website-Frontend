@@ -130,6 +130,8 @@ export interface Order {
   isCustomOrder?: boolean;
   customOrderId?: string;
   customOrderMessages?: CustomOrderMessage[];
+  // Customer expectations & customization color choices note
+  customerNotes?: string;
 }
 
 declare global {

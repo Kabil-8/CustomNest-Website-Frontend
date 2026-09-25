@@ -778,7 +778,7 @@ export default function AdminProducts() {
                     <label className="btn-primary py-1.5 px-4 text-[0.7rem] cursor-pointer flex items-center gap-1.5">
                       <Upload size={13} />
                       <span>Upload Photo{formData.images.length > 0 ? ' (add more)' : ''}</span>
-                      <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
+                      <input type="file" accept="image/*,.heic,.heif" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                     </label>
                   )}
                 </div>
@@ -786,7 +786,7 @@ export default function AdminProducts() {
                 {compressingImages && (
                   <div className="flex items-center gap-2.5 text-xs text-rose-700 bg-rose-50/90 border border-rose-200 px-3.5 py-2.5 rounded-xl animate-pulse">
                     <Loader2 size={15} className="animate-spin text-rose-600 shrink-0" />
-                    <span>Optimizing and compressing high-resolution photo for fast loading...</span>
+                    <span>Optimizing and converting high-resolution / HEIC photo for fast loading...</span>
                   </div>
                 )}
 
@@ -799,9 +799,9 @@ export default function AdminProducts() {
                       <p className="text-xs font-semibold text-charcoal">
                         {compressingImages ? 'Optimizing photo...' : 'Click to upload product photos'}
                       </p>
-                      <p className="text-[0.68rem] text-muted mt-0.5">Up to 3 images — JPG, PNG, WEBP auto-compressed</p>
+                      <p className="text-[0.68rem] text-muted mt-0.5">Up to 3 images — JPG, PNG, WEBP, HEIC auto-compressed</p>
                     </div>
-                    <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
+                    <input type="file" accept="image/*,.heic,.heif" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                   </label>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
@@ -831,7 +831,7 @@ export default function AdminProducts() {
                         <span className="text-[0.65rem] text-muted font-semibold">
                           {compressingImages ? 'Optimizing…' : 'Add Photo'}
                         </span>
-                        <input type="file" accept="image/*" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
+                        <input type="file" accept="image/*,.heic,.heif" multiple onChange={handleImageFilesUpload} className="hidden" disabled={compressingImages} />
                       </label>
                     )}
                   </div>
