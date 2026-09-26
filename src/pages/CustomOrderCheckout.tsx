@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload, Copy } from 'lucide-react';
+import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { addresses as addressApi, customOrders as customOrderApi, orders as ordersApi } from '../lib/api';
@@ -9,6 +9,7 @@ import { classNames } from '../lib/utils';
 import type { Address, CustomOrderRequest } from '../types';
 import { Breadcrumb, Spinner } from '../components/ui';
 import { ensureWebImageFile } from '../lib/imageUtils';
+import GPayQrCard from '../components/GPayQrCard';
 
 const STEPS = ['Address', 'Review', 'Payment'];
 
@@ -37,13 +38,6 @@ export default function CustomOrderCheckout() {
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
-  const [copiedUpi, setCopiedUpi] = useState(false);
-
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText('ashwithaksamy@oksbi');
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
-  };
 
   // Load the custom order request
   useEffect(() => {
@@ -361,43 +355,19 @@ export default function CustomOrderCheckout() {
       {showUpiQr && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border border-line">
-            <h3 className="font-display text-xl text-charcoal mb-1">Scan & Pay via GPay</h3>
-            <p className="text-xs text-muted mb-3">
-              Scan with Google Pay or any UPI app to pay <strong className="text-charcoal font-bold">{`₹${total.toLocaleString('en-IN')}`}</strong>
+            <h3 className="font-display text-2xl text-charcoal mb-1">Scan & Pay</h3>
+            <p className="text-sm text-muted mb-4">
+              Scan with any UPI app to pay <strong className="text-charcoal font-bold text-base">Rs.{total.toLocaleString('en-IN')}</strong>
             </p>
             
-            {/* QR Code image */}
-            <div className="bg-white p-2 rounded-2xl border border-rose-100 shadow-soft inline-block mb-3 w-full max-w-[260px]">
-              <img src="/images/upi.jpeg" alt="Google Pay QR - Ashwitha P.C" className="w-full h-auto rounded-xl object-contain mx-auto" />
+            {/* GPay QR Card with pre-filled amount */}
+            <div className="mb-5">
+              <GPayQrCard amount={total} orderNumber={pendingOrderId || undefined} />
             </div>
-
-            {/* UPI ID & Quick Copy */}
-            <div className="flex items-center justify-between gap-2 bg-rose-50/70 border border-rose-200/80 rounded-xl px-3 py-2 mb-3 text-left">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">UPI ID (Ashwitha P.C)</p>
-                <p className="text-xs font-mono font-bold text-charcoal truncate">ashwithaksamy@oksbi</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyUpi}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-white border border-rose-200 rounded-lg px-2.5 py-1 hover:bg-rose-50 transition cursor-pointer shrink-0"
-              >
-                {copiedUpi ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                <span>{copiedUpi ? 'Copied!' : 'Copy'}</span>
-              </button>
-            </div>
-
-            {/* Mobile Direct Pay */}
-            <a
-              href={`upi://pay?pa=ashwithaksamy@oksbi&pn=Ashwitha%20PC&am=${total}&cu=INR`}
-              className="sm:hidden flex items-center justify-center gap-2 w-full py-2.5 mb-3 rounded-xl bg-charcoal text-white text-xs font-bold hover:bg-black transition shadow-xs"
-            >
-              <span>Tap to Pay with UPI App</span>
-            </a>
             
             {/* Payment Screenshot Upload */}
-            <div className="mb-4 text-left">
-              <label className="label text-xs mb-1 flex items-center justify-between">
+            <div className="mb-5 text-left">
+              <label className="label text-xs mb-1.5 flex items-center justify-between">
                 <span>Upload Payment Screenshot <span className="text-rose-500">*</span></span>
               </label>
               <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-4 cursor-pointer transition-all ${
