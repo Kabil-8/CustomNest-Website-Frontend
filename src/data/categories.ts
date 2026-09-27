@@ -27,7 +27,7 @@ export const COLLECTIONS: Collection[] = [
   },
   {
     slug: 'resin-frames',
-    name: 'Resin Memory Frames',
+    name: 'Resin Photo Frames',
     tagline: 'Preserved floral & photo keepsakes',
     image: '/images/categories/resin-frames.jpg',
   },

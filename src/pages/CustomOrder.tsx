@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquareHeart,
@@ -18,6 +18,7 @@ import {
   Loader2,
   Ruler,
   AlertCircle,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { customOrders as customOrderApi } from '../lib/api';
 import { listActiveColors, type ApiColor } from '../lib/productApi';
@@ -59,9 +60,18 @@ const CATEGORY_PRESETS = [
   { id: 'special-combo', name: 'Special Combo Bouquet', image: '/images/categories/special-combo-bouquets.jpg' },
   { id: 'jumbo-flower', name: 'Jumbo Flower Bouquet', image: '/images/categories/jumbo-flower-bouquets.jpg' },
   { id: 'plushies', name: 'Plushies & Amigurumi', image: '/images/categories/plushies.jpg' },
-  { id: 'resin-frames', name: 'Resin Art & Memory Frame', image: '/images/categories/resin-frames.jpg' },
+  { id: 'resin-frames', name: 'Resin Photo Frames', image: '/images/categories/resin-frames.jpg' },
   { id: 'event-specific', name: 'Event & Occasion Gift', image: '/images/categories/event-specific.jpg' },
   { id: 'single-flowers', name: 'Single Crochet Flowers', image: '/images/categories/single-flowers.jpg' },
+];
+
+export const RESIN_SAMPLE_IMAGES = [
+  { name: 'Botanical Keepsake Frame', src: '/images/products/resin-frames/resin-frames-01.jpg', desc: 'Resin-cast photo frame bordered with handmade crochet florals' },
+  { name: 'Floral Memory Frame', src: '/images/products/resin-frames/resin-frames-02.jpg', desc: 'Preserved petals with clear glass resin & wooden easel stand' },
+  { name: 'Golden Rim Glow Frame', src: '/images/products/resin-frames/resin-frames-03.jpg', desc: 'Warm fairy LED light embedded within crystalline resin' },
+  { name: 'Blush Edge Keepsake', src: '/images/products/resin-frames/resin-frames-04.jpg', desc: 'Hand-tinted blush floral accents in ultra-clear memory resin' },
+  { name: 'Ivory Bordered Keepsake', src: '/images/products/resin-frames/resin-frames-05.jpg', desc: 'Minimalist white crochet borders with custom photo window' },
+  { name: 'Pressed Bloom Deluxe', src: '/images/products/resin-frames/resin-frames-06.jpg', desc: 'Full border blossom arrangement with embedded portrait photo' },
 ];
 
 export const RESIN_OPTIONS = [
@@ -82,12 +92,16 @@ const SIZE_OPTIONS = [
 export default function CustomOrder() {
   const { show } = useToast();
   const { user, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category') || searchParams.get('preset') || '';
+  const initialIsResin = categoryParam.toLowerCase().includes('resin');
+
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [convertingSlot, setConvertingSlot] = useState<string | null>(null);
 
   // ── Customer image upload slots ──────────────────────────────────────────
-  // For resin art: up to 3 photos (Photo 1, Photo 2, Photo 3)
-  // For other products: Photo 1
+  // Up to 3 reference photo documents with full HEIC/HEIF support
   const [refFile1, setRefFile1] = useState<File | null>(null);
   const [refPreview1, setRefPreview1] = useState<string | null>(null);
   const [refFile2, setRefFile2] = useState<File | null>(null);
@@ -95,9 +109,10 @@ export default function CustomOrder() {
   const [refFile3, setRefFile3] = useState<File | null>(null);
   const [refPreview3, setRefPreview3] = useState<string | null>(null);
 
-  // Sample / inspiration image (what they want it to look like)
-  const [sampleFile, setSampleFile]       = useState<File | null>(null);
-  const [samplePreview, setSamplePreview] = useState<string | null>(null);
+  // Sample / inspiration image (uploaded by customer OR chosen from preset gallery)
+  const [sampleFile, setSampleFile]             = useState<File | null>(null);
+  const [samplePreview, setSamplePreview]       = useState<string | null>(null);
+  const [selectedSamplePreset, setSelectedSamplePreset] = useState<string>('');
 
   // ── Live color palette from DB ────────────────────────────────────────────
   const [colorPalette, setColorPalette] = useState<ApiColor[]>([]);
@@ -112,8 +127,9 @@ export default function CustomOrder() {
 
   const [form, setForm] = useState({
     name: '',
+    email: '',
     phone: '',
-    productType: 'Special Combo Bouquet',
+    productType: initialIsResin ? 'Resin Photo Frames' : 'Special Combo Bouquet',
     colors: '',        // color name selected from DB palette
     yarnType: 'normal' as 'normal' | 'acrylic' | 'either' | '',
     resinOption: 'Only Resin', // 'Only Resin' | 'Resin and Stand' | 'Resin and Light' | 'Resin and Light and with Stand'
@@ -134,6 +150,7 @@ export default function CustomOrder() {
       setForm((prev) => ({
         ...prev,
         name: prev.name || user.name || '',
+        email: prev.email || user.email || '',
         phone: prev.phone || user.phone || '',
       }));
     }
@@ -144,7 +161,8 @@ export default function CustomOrder() {
   // ── File handlers with HEIC conversion support ────────────────────────────
   function makeFileHandler(
     setFile: (f: File | null) => void,
-    setPreview: (p: string | null) => void
+    setPreview: (p: string | null) => void,
+    slotName: string
   ) {
     return async (e: React.ChangeEvent<HTMLInputElement>) => {
       const rawFile = e.target.files?.[0];
@@ -153,6 +171,7 @@ export default function CustomOrder() {
         show('Please select an image smaller than 15MB.', 'error');
         return;
       }
+      setConvertingSlot(slotName);
       try {
         const file = await ensureWebImageFile(rawFile);
         setFile(file);
@@ -164,22 +183,37 @@ export default function CustomOrder() {
       } catch (err) {
         console.error('Failed to convert image:', err);
         setFile(rawFile);
+      } finally {
+        setConvertingSlot(null);
       }
       // Reset the input value so the same file can be re-selected after removal
       e.target.value = '';
     };
   }
 
-  const handleRefFileChange1   = makeFileHandler(setRefFile1,   setRefPreview1);
-  const handleRefFileChange2   = makeFileHandler(setRefFile2,   setRefPreview2);
-  const handleRefFileChange3   = makeFileHandler(setRefFile3,   setRefPreview3);
-  const handleSampleFileChange = makeFileHandler(setSampleFile, setSamplePreview);
+  const handleRefFileChange1   = makeFileHandler(setRefFile1,   setRefPreview1,   'ref1');
+  const handleRefFileChange2   = makeFileHandler(setRefFile2,   setRefPreview2,   'ref2');
+  const handleRefFileChange3   = makeFileHandler(setRefFile3,   setRefPreview3,   'ref3');
+  const handleSampleFileChange = makeFileHandler(setSampleFile, setSamplePreview, 'sample');
+
+  const handleSelectSamplePreset = (preset: typeof RESIN_SAMPLE_IMAGES[0]) => {
+    if (selectedSamplePreset === preset.src) {
+      setSelectedSamplePreset('');
+      setSamplePreview(null);
+    } else {
+      setSelectedSamplePreset(preset.src);
+      setSampleFile(null);
+      setSamplePreview(preset.src);
+      show(`Selected "${preset.name}" as sample design inspiration`, 'info');
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     const finalName = (form.name || user.name || '').trim();
+    const finalEmail = (user.email || form.email || '').trim();
     const finalPhone = (form.phone || user.phone || '').trim();
     const finalDesc = form.description.trim();
 
@@ -191,6 +225,12 @@ export default function CustomOrder() {
       newErrors.name = 'Please enter at least 2 characters for your name';
     }
 
+    if (!finalEmail) {
+      newErrors.email = 'Email address is required';
+    } else if (!/\S+@\S+\.\S+/.test(finalEmail)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
     if (!finalPhone) {
       newErrors.phone = 'Phone / WhatsApp number is required';
     } else if (finalPhone.replace(/\D/g, '').length < 6) {
@@ -199,18 +239,19 @@ export default function CustomOrder() {
 
     if (!finalDesc) {
       newErrors.description = 'Please describe your custom order vision';
-    } else if (finalDesc.length < 10) {
-      newErrors.description = 'Please provide a little more detail (at least 10 characters)';
+    } else if (finalDesc.length < 5) {
+      newErrors.description = 'Please provide a little more detail (at least 5 characters)';
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       const missingFields: string[] = [];
       if (newErrors.name) missingFields.push('Full Name');
+      if (newErrors.email) missingFields.push('Email Address');
       if (newErrors.phone) missingFields.push('Phone Number');
       if (newErrors.description) missingFields.push('Description');
 
-      show(`Please fill in the required fields highlighted in red: ${missingFields.join(', ')}`, 'error');
+      show(`Please fill in the required fields: ${missingFields.join(', ')}`, 'error');
 
       // Scroll and focus on the first invalid field
       const firstKey = Object.keys(newErrors)[0];
@@ -227,7 +268,7 @@ export default function CustomOrder() {
       const allRefFiles = [refFile1, refFile2, refFile3].filter(Boolean) as File[];
       await customOrderApi.submit({
         ...form,
-        email: user.email,
+        email: finalEmail,
         name: finalName,
         phone: finalPhone,
         description: finalDesc,
@@ -235,6 +276,7 @@ export default function CustomOrder() {
         referenceImageFile: allRefFiles[0] || null,
         referenceImageFiles: allRefFiles,
         sampleImageFile: sampleFile || null,
+        sampleImage: selectedSamplePreset || undefined,
       });
       setSubmitted(true);
       show('Your custom request has been submitted!', 'success');
@@ -601,22 +643,38 @@ export default function CustomOrder() {
                       error={errors.name}
                     />
 
-                    {/* Email locked to account -- read-only */}
-                    <div>
-                      <label className="label mb-1.5 flex items-center gap-1.5">
-                        Email Address
-                        <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                          <Lock size={10} /> Locked to account
-                        </span>
-                      </label>
-                      <input
+                    {/* Email field — locked if on profile, editable if logged in with phone */}
+                    {user.email ? (
+                      <div>
+                        <label className="label mb-1.5 flex items-center gap-1.5">
+                          Email Address
+                          <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                            <Lock size={10} /> Locked to account
+                          </span>
+                        </label>
+                        <input
+                          type="email"
+                          value={user.email}
+                          readOnly
+                          className="input bg-rose-50/40 cursor-not-allowed text-muted border-rose-100 select-none"
+                          tabIndex={-1}
+                        />
+                      </div>
+                    ) : (
+                      <Field
+                        id="co-email"
+                        label="Email Address"
+                        required
                         type="email"
-                        value={user.email}
-                        readOnly
-                        className="input bg-rose-50/40 cursor-not-allowed text-muted border-rose-100 select-none"
-                        tabIndex={-1}
+                        value={form.email}
+                        onChange={(v) => {
+                          update({ email: v });
+                          if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                        }}
+                        placeholder="yourname@gmail.com"
+                        error={errors.email}
                       />
-                    </div>
+                    )}
 
                     <Field
                       id="co-phone"
@@ -667,81 +725,136 @@ export default function CustomOrder() {
                   <div className="space-y-4">
                     <div>
                       <p className="label mb-0">
-                        7. {isResin ? 'Upload Resin Photos (Up to 3 Photos + 1 Sample Design)' : 'Upload Images'}{' '}
+                        7. {isResin ? 'Upload Resin Photos (Up to 3 Photos + 1 Sample Design)' : 'Upload Pictures (Up to 3 Photos + 1 Sample Design)'}{' '}
                         <span className="text-muted font-normal">(Optional)</span>
                       </p>
                       <p className="text-xs text-muted mt-1">
                         {isResin
-                          ? 'For resin frames/art, you can upload up to 3 photos of your loved ones, pets, or memories to embed in your piece, plus an inspiration photo.'
-                          : 'Upload a photo of the person, pet, or object to recreate, plus any sample styling reference.'}
+                          ? 'For Resin Photo Frames, upload up to 3 personal photos to cast/frame into your custom piece, plus select or upload a sample design.'
+                          : 'Upload up to 3 reference photo documents of what you would like crafted, plus a sample design.'}
                       </p>
                     </div>
 
-                    {isResin ? (
-                      <div className="space-y-3">
-                        {/* Resin Slot 1 */}
-                        <ImageUploadSlot
-                          label="📸 Photo 1 (Main Subject)"
-                          hint="Primary photo to be cast/framed inside the resin artwork"
-                          preview={refPreview1}
-                          file={refFile1}
-                          onChange={handleRefFileChange1}
-                          onRemove={() => { setRefFile1(null); setRefPreview1(null); }}
-                        />
-
-                        {/* Resin Slot 2 */}
-                        <ImageUploadSlot
-                          label="📸 Photo 2 (Optional)"
-                          hint="Second photo for collage, dual portrait, or multi-photo resin"
-                          preview={refPreview2}
-                          file={refFile2}
-                          onChange={handleRefFileChange2}
-                          onRemove={() => { setRefFile2(null); setRefPreview2(null); }}
-                        />
-
-                        {/* Resin Slot 3 */}
-                        <ImageUploadSlot
-                          label="📸 Photo 3 (Optional)"
-                          hint="Third photo for multiple photos or collage piece"
-                          preview={refPreview3}
-                          file={refFile3}
-                          onChange={handleRefFileChange3}
-                          onRemove={() => { setRefFile3(null); setRefPreview3(null); }}
-                        />
-
-                        {/* Sample / Inspiration reference */}
-                        <ImageUploadSlot
-                          label="🖼️ Sample / Inspiration Photo"
-                          hint="Upload a sample image showing the style, floral border, or design you want"
-                          preview={samplePreview}
-                          file={sampleFile}
-                          onChange={handleSampleFileChange}
-                          onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {/* Slot A: Customer's own photo */}
-                        <ImageUploadSlot
-                          label="📸 Your Photo"
-                          hint="Upload a photo of the person, pet, or object to recreate"
-                          preview={refPreview1}
-                          file={refFile1}
-                          onChange={handleRefFileChange1}
-                          onRemove={() => { setRefFile1(null); setRefPreview1(null); }}
-                        />
-
-                        {/* Slot B: Sample / inspiration reference */}
-                        <ImageUploadSlot
-                          label="🖼️ Sample / Inspiration Photo"
-                          hint="Upload a sample image showing the style or design you want"
-                          preview={samplePreview}
-                          file={sampleFile}
-                          onChange={handleSampleFileChange}
-                          onRemove={() => { setSampleFile(null); setSamplePreview(null); }}
-                        />
+                    {/* Interactive Sample Inspiration Designs for Resin Photo Frames */}
+                    {isResin && (
+                      <div className="bg-rose-50/60 border border-rose-200/80 rounded-2xl p-4 sm:p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Sparkles size={16} className="text-rose-500 animate-pulse" />
+                            <h4 className="text-xs sm:text-sm font-bold text-charcoal">
+                              Signature Resin Photo Frame Sample Designs
+                            </h4>
+                          </div>
+                          <span className="text-[11px] text-muted hidden sm:inline">
+                            Click any sample to use as your inspiration reference
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                          {RESIN_SAMPLE_IMAGES.map((sample) => {
+                            const isSelected = selectedSamplePreset === sample.src;
+                            return (
+                              <button
+                                type="button"
+                                key={sample.src}
+                                onClick={() => handleSelectSamplePreset(sample)}
+                                className={`group relative rounded-xl overflow-hidden border-2 text-left transition-all p-1 bg-white flex flex-col ${
+                                  isSelected
+                                    ? 'border-rose-500 ring-2 ring-rose-300 shadow-md'
+                                    : 'border-line hover:border-rose-300 hover:shadow-soft'
+                                }`}
+                              >
+                                <div className="aspect-square w-full rounded-lg overflow-hidden bg-sand mb-1.5 relative">
+                                  <img
+                                    src={sample.src}
+                                    alt={sample.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                  {isSelected && (
+                                    <div className="absolute inset-0 bg-rose-600/30 flex items-center justify-center">
+                                      <span className="bg-white text-rose-600 rounded-full p-1 shadow-sm">
+                                        <Check size={14} className="stroke-[3]" />
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-[11px] font-bold text-charcoal truncate px-0.5">{sample.name}</p>
+                                <p className="text-[9px] text-muted truncate px-0.5">{sample.desc}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {selectedSamplePreset && (
+                          <div className="mt-3 flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-rose-200 text-xs">
+                            <span className="text-charcoal font-medium">
+                              Selected Sample:{' '}
+                              <strong className="text-rose-600 font-bold">
+                                {RESIN_SAMPLE_IMAGES.find((s) => s.src === selectedSamplePreset)?.name}
+                              </strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSamplePreset('');
+                                setSamplePreview(null);
+                              }}
+                              className="text-[11px] text-rose-600 hover:underline font-semibold"
+                            >
+                              Clear selection
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    <div className="space-y-3">
+                      {/* Photo Document 1 */}
+                      <ImageUploadSlot
+                        label="📸 Photo Document 1 (Primary / Main Subject)"
+                        hint={isResin ? 'Main photo to be cast/framed inside the resin artwork' : 'Primary photo to recreate or stitch'}
+                        preview={refPreview1}
+                        file={refFile1}
+                        converting={convertingSlot === 'ref1'}
+                        onChange={handleRefFileChange1}
+                        onRemove={() => { setRefFile1(null); setRefPreview1(null); }}
+                      />
+
+                      {/* Photo Document 2 */}
+                      <ImageUploadSlot
+                        label="📸 Photo Document 2 (Second Photo / Angle - Optional)"
+                        hint={isResin ? 'Second photo for couple, dual portrait, or collage piece' : 'Additional view or detail angle'}
+                        preview={refPreview2}
+                        file={refFile2}
+                        converting={convertingSlot === 'ref2'}
+                        onChange={handleRefFileChange2}
+                        onRemove={() => { setRefFile2(null); setRefPreview2(null); }}
+                      />
+
+                      {/* Photo Document 3 */}
+                      <ImageUploadSlot
+                        label="📸 Photo Document 3 (Third Photo / Memory - Optional)"
+                        hint={isResin ? 'Third photo for multi-photo resin layout or background' : 'Extra styling or reference document'}
+                        preview={refPreview3}
+                        file={refFile3}
+                        converting={convertingSlot === 'ref3'}
+                        onChange={handleRefFileChange3}
+                        onRemove={() => { setRefFile3(null); setRefPreview3(null); }}
+                      />
+
+                      {/* Sample / Inspiration reference */}
+                      <ImageUploadSlot
+                        label="🖼️ Sample / Inspiration Photo (Optional)"
+                        hint={isResin ? 'Upload a sample inspiration picture or select one of our signature designs above' : 'Upload an inspiration image showing the desired style or look'}
+                        preview={samplePreview}
+                        file={sampleFile}
+                        converting={convertingSlot === 'sample'}
+                        onChange={handleSampleFileChange}
+                        onRemove={() => {
+                          setSampleFile(null);
+                          setSamplePreview(null);
+                          setSelectedSamplePreset('');
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {/* Trust guarantees bar */}
@@ -828,6 +941,7 @@ function ImageUploadSlot({
   hint,
   preview,
   file,
+  converting = false,
   onChange,
   onRemove,
 }: {
@@ -835,6 +949,7 @@ function ImageUploadSlot({
   hint: string;
   preview: string | null;
   file: File | null;
+  converting?: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: () => void;
 }) {
@@ -842,20 +957,26 @@ function ImageUploadSlot({
     <div>
       <p className="text-xs font-semibold text-charcoal mb-1.5">{label}</p>
       <label
-        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-5 cursor-pointer transition-all duration-200 ${
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-4 sm:p-5 cursor-pointer transition-all duration-200 relative ${
           preview ? 'border-rose-400 bg-rose-50/50' : 'border-line hover:border-rose-300 bg-ivory/40'
         }`}
       >
-        {preview ? (
+        {converting ? (
+          <div className="flex flex-col items-center justify-center py-4 text-center">
+            <Loader2 size={24} className="animate-spin text-rose-500 mb-2" />
+            <p className="text-xs font-bold text-charcoal">Converting & Optimizing Image...</p>
+            <p className="text-[11px] text-muted">Processing HEIC / high-resolution image</p>
+          </div>
+        ) : preview ? (
           <div className="flex items-center justify-between w-full gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <img
                 src={preview}
                 alt={label}
-                className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm shrink-0"
+                className="w-16 h-16 rounded-xl object-cover border border-rose-200 shadow-sm shrink-0 bg-white"
               />
               <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-charcoal truncate">{file?.name}</p>
+                <p className="text-xs font-bold text-charcoal truncate">{file?.name || 'Selected Sample Design'}</p>
                 <p className="text-[11px] text-rose-600 font-semibold mt-0.5">
                   ✓ Ready to upload · Click to change
                 </p>
@@ -872,15 +993,23 @@ function ImageUploadSlot({
           </div>
         ) : (
           <div className="text-center">
-            <div className="w-11 h-11 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mx-auto mb-2">
-              <Upload size={18} />
+            <div className="w-10 h-10 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mx-auto mb-2">
+              <Upload size={17} />
             </div>
             <p className="text-xs font-bold text-charcoal">{label}</p>
             <p className="text-[11px] text-muted mt-0.5">{hint}</p>
-            <p className="text-[10px] text-muted/60 mt-1">JPG, PNG, WEBP or HEIC (Apple Photos) up to 15MB</p>
+            <p className="text-[10px] text-rose-600/90 font-medium mt-1">
+              Supports JPG, PNG, WEBP, and Apple HEIC/HEIF up to 15MB
+            </p>
           </div>
         )}
-        <input type="file" accept="image/*,.heic,.heif" className="hidden" onChange={onChange} />
+        <input
+          type="file"
+          accept="image/*,.heic,.heif,image/heic,image/heif"
+          className="hidden"
+          disabled={converting}
+          onChange={onChange}
+        />
       </label>
     </div>
   );

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, SlidersHorizontal, PackageX, Loader2 } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import { useCategories } from '../hooks/useCategories';
 import { CATEGORIES } from '../data/categories';
 import { ProductCard } from '../components/ProductCard';
 import { CategorySlider } from '../components/shop/CategorySlider';
@@ -12,6 +13,7 @@ import { BlurText } from '../components/reactbits/BlurText';
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { categories } = useCategories();
 
   const activeCategory = searchParams.get('category') ?? 'all';
   const queryParam     = searchParams.get('q') ?? '';
@@ -31,18 +33,20 @@ export default function Shop() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Build API params — the backend handles all filtering/sorting
+  // Build API params — the backend handles all filtering/sorting dynamically
   const apiParams = useMemo(() => ({
     category:     activeCategory !== 'all' ? activeCategory : undefined,
     q:            debouncedQ.trim() || undefined,
     sort:         sortOption as 'featured' | 'newest' | 'price-asc' | 'price-desc' | 'popular' | 'rating',
     maxPrice:     maxPrice < 3500 ? maxPrice : undefined,
+    inStock:      inStockOnly ? true : undefined,
+    minRating:    minRating > 0 ? minRating : undefined,
     limit:        48,
-  }), [activeCategory, debouncedQ, sortOption, maxPrice]);
+  }), [activeCategory, debouncedQ, sortOption, maxPrice, inStockOnly, minRating]);
 
   const { products: allProducts, total, loading, error } = useProducts(apiParams);
 
-  // Client-side stock + rating filters (not in API query)
+  // Client-side stock + rating filters as guaranteed fallback
   const filteredProducts = useMemo(() => {
     let list = allProducts;
     if (inStockOnly)     list = list.filter(p => p.stock > 0);
@@ -65,8 +69,8 @@ export default function Shop() {
     setSearchParams({});
   };
 
-  const activeCategoryObj = CATEGORIES.find(
-    (c) => (c.id ?? c.slug) === activeCategory
+  const activeCategoryObj = (categories.length > 0 ? categories : CATEGORIES).find(
+    (c) => (c.id ?? c.slug) === activeCategory || c.slug === activeCategory
   );
 
   return (
@@ -90,7 +94,11 @@ export default function Shop() {
 
         {/* Category pills */}
         <div className="mb-6 rounded-2xl overflow-hidden shadow-soft border border-line bg-white">
-          <CategorySlider selectedCategory={activeCategory} onSelectCategory={handleSelectCategory} />
+          <CategorySlider
+            selectedCategory={activeCategory}
+            onSelectCategory={handleSelectCategory}
+            categories={categories}
+          />
         </div>
 
         {/* Toolbar */}
@@ -119,6 +127,7 @@ export default function Shop() {
               minRating={minRating}
               onMinRatingChange={setMinRating}
               onResetFilters={handleResetFilters}
+              categories={categories}
             />
           </aside>
 
@@ -215,6 +224,7 @@ export default function Shop() {
                 minRating={minRating}
                 onMinRatingChange={setMinRating}
                 onResetFilters={() => { handleResetFilters(); setMobileFiltersOpen(false); }}
+                categories={categories}
               />
 
               <button

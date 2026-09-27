@@ -59,6 +59,8 @@ export interface ProductListParams {
   q?: string;
   sort?: 'featured' | 'newest' | 'price-asc' | 'price-desc' | 'popular' | 'rating';
   maxPrice?: number;
+  inStock?: boolean;
+  minRating?: number;
   customizable?: boolean;
   home?: boolean | string | number;
   page?: number;

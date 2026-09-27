@@ -276,10 +276,10 @@ export const customOrders = {
 
     // Text fields
     const textFields = ['name','email','phone','productType','colors','yarnType','resinOption','size',
-      'quantity','budget','deadline','description','agreedPrice','linkedOrderId'] as const;
+      'quantity','budget','deadline','description','sampleImage','referenceImage','agreedPrice','linkedOrderId'] as const;
     for (const key of textFields) {
       const val = (input as any)[key];
-      if (val !== undefined && val !== null) formData.append(key, String(val));
+      if (val !== undefined && val !== null && val !== '') formData.append(key, String(val));
     }
 
     // File fields — real file uploads (saved to /uploads on server)

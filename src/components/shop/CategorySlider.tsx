@@ -1,13 +1,19 @@
 import React from 'react';
-import { CATEGORIES } from '../../data/categories';
+import { CATEGORIES as DEFAULT_CATEGORIES } from '../../data/categories';
+import type { Category } from '../../types';
 import { classNames } from '../../lib/utils';
 
 interface CategorySliderProps {
   selectedCategory: string;
   onSelectCategory: (id: string) => void;
+  categories?: Category[];
 }
 
-export function CategorySlider({ selectedCategory, onSelectCategory }: CategorySliderProps) {
+export function CategorySlider({
+  selectedCategory,
+  onSelectCategory,
+  categories = DEFAULT_CATEGORIES,
+}: CategorySliderProps) {
   return (
     <div className="w-full overflow-x-auto no-scrollbar py-2 border-b border-line/60 bg-cream/40">
       <div className="flex items-center gap-2 px-4 min-w-max">
@@ -20,10 +26,10 @@ export function CategorySlider({ selectedCategory, onSelectCategory }: CategoryS
               : 'bg-white text-charcoal border border-line hover:border-rose-300 hover:bg-rose-50'
           )}
         >
-          All Items ({CATEGORIES.length})
+          All Items ({categories.length})
         </button>
 
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const catId = cat.id || cat.slug;
           const isSelected = selectedCategory === catId;
           return (

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save, Trash2, Camera, Palette } from 'lucide-react';
+import { Search, Eye, Loader2, PackageX, Truck, Calendar, Check, Save, Trash2, Camera, Palette, Download, ExternalLink, ZoomIn, X, Image as ImageIcon } from 'lucide-react';
 import { orders as ordersApi } from '../../lib/api';
 import type { Order, OrderStatus } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { OrderTimeline } from '../../components/OrderTimeline';
-import { formatDate, estimateDelivery, getHandcraftingWindow } from '../../lib/utils';
+import { formatDate, estimateDelivery, getHandcraftingWindow, getImageUrl, downloadImage } from '../../lib/utils';
 
 export default function AdminOrders() {
   const { show } = useToast();
@@ -15,12 +15,26 @@ export default function AdminOrders() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string; filename: string } | null>(null);
+  const [downloadingImg, setDownloadingImg] = useState<string | null>(null);
 
   // Delivery update form in modal
   const [modalStatus, setModalStatus] = useState<OrderStatus>('Pending');
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [courier, setCourier] = useState<string>('');
   const [tracking, setTracking] = useState<string>('');
+
+  const handleDownload = async (url: string, filename: string, key?: string) => {
+    if (key) setDownloadingImg(key);
+    try {
+      await downloadImage(url, filename);
+      show(`Download started: ${filename} ✓`, 'success');
+    } catch {
+      show('Failed to download image', 'error');
+    } finally {
+      if (key) setDownloadingImg(null);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -207,9 +221,34 @@ export default function AdminOrders() {
                           </span>
                         )}
                         {o.paymentScreenshot ? (
-                          <span className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1 block w-fit">
-                            📷 Screenshot Uploaded
-                          </span>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewModalImg({
+                                  url: getImageUrl(o.paymentScreenshot),
+                                  title: `Payment Screenshot Proof (${o.orderNumber || o.id})`,
+                                  filename: `payment_proof_${o.orderNumber || o.id.slice(-6)}.jpg`,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-emerald-800 bg-emerald-100/90 hover:bg-emerald-200 border border-emerald-300 px-2 py-0.5 rounded-full transition cursor-pointer"
+                              title="Click to view & zoom screenshot"
+                            >
+                              <Camera size={11} /> View Proof
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(getImageUrl(o.paymentScreenshot), `payment_proof_${o.orderNumber || o.id.slice(-6)}.jpg`);
+                              }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition cursor-pointer shadow-2xs"
+                              title="Download payment screenshot"
+                            >
+                              <Download size={10} />
+                            </button>
+                          </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[0.62rem] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-1 block w-fit">
                             ⏳ Pending Payment SS
@@ -340,41 +379,172 @@ export default function AdminOrders() {
 
               {selectedOrder.paymentScreenshot ? (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white p-3.5 rounded-xl border border-rose-100 shadow-2xs">
-                  <a
-                    href={selectedOrder.paymentScreenshot}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative group shrink-0 block"
-                    title="Click to view full screenshot"
+                  <div
+                    onClick={() => {
+                      const url = getImageUrl(selectedOrder.paymentScreenshot);
+                      setPreviewModalImg({
+                        url,
+                        title: `Payment Screenshot Proof (${selectedOrder.orderNumber || selectedOrder.id})`,
+                        filename: `payment_proof_${selectedOrder.orderNumber || selectedOrder.id.slice(-6)}.jpg`,
+                      });
+                    }}
+                    className="relative group shrink-0 block cursor-pointer"
+                    title="Click to zoom screenshot"
                   >
                     <img
-                      src={selectedOrder.paymentScreenshot}
+                      src={getImageUrl(selectedOrder.paymentScreenshot)}
                       alt="Payment Screenshot Proof"
                       className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl border border-rose-200 shadow-xs group-hover:scale-105 transition duration-200"
                     />
                     <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[10px] font-semibold transition">
-                      Enlarge ↗
+                      Zoom ↗
                     </div>
-                  </a>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-charcoal">Customer Payment Proof</p>
                     <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                       Amount charged: <strong className="text-rose-600">₹{selectedOrder.total}</strong>. Verify UPI transaction proof before shipping.
                     </p>
-                    <a
-                      href={selectedOrder.paymentScreenshot}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-rose-600 font-bold hover:underline mt-2"
-                    >
-                      Open full screenshot in new tab ↗
-                    </a>
+                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = getImageUrl(selectedOrder.paymentScreenshot);
+                          handleDownload(url, `payment_proof_${selectedOrder.orderNumber || selectedOrder.id.slice(-6)}.jpg`, 'payment-proof');
+                        }}
+                        disabled={downloadingImg === 'payment-proof'}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer"
+                      >
+                        {downloadingImg === 'payment-proof' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                        <span>Download Screenshot</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = getImageUrl(selectedOrder.paymentScreenshot);
+                          setPreviewModalImg({
+                            url,
+                            title: `Payment Screenshot Proof (${selectedOrder.orderNumber || selectedOrder.id})`,
+                            filename: `payment_proof_${selectedOrder.orderNumber || selectedOrder.id.slice(-6)}.jpg`,
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-800 font-semibold px-2.5 py-1 rounded-xl border border-rose-200 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        <ZoomIn size={12} />
+                        <span>Enlarge</span>
+                      </button>
+                      <a
+                        href={getImageUrl(selectedOrder.paymentScreenshot)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted hover:text-rose-600 font-medium hover:underline"
+                      >
+                        <ExternalLink size={11} />
+                        <span>New tab</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-muted italic">No payment screenshot attached for this order yet.</p>
               )}
             </div>
+
+            {/* Customer Uploaded Custom Reference Images (if order is linked to custom order request) */}
+            {(() => {
+              const customReq = (selectedOrder as any).customOrderId;
+              if (!customReq) return null;
+              const refImages: string[] = Array.isArray(customReq.referenceImages) && customReq.referenceImages.length > 0
+                ? customReq.referenceImages
+                : (customReq.referenceImage ? [customReq.referenceImage] : []);
+              const sampleImg = customReq.sampleImage;
+              if (refImages.length === 0 && !sampleImg) return null;
+
+              return (
+                <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200/90 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-rose-200/60">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon size={16} className="text-rose-600" />
+                      <span className="text-xs font-bold text-charcoal">Customer Reference Photos (Custom Order)</span>
+                      <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full">
+                        {refImages.length} Photo{refImages.length !== 1 ? 's' : ''}{sampleImg ? ' + 1 Sample' : ''}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const orderNum = selectedOrder.orderNumber || selectedOrder.id.slice(-6);
+                        for (let i = 0; i < refImages.length; i++) {
+                          await downloadImage(getImageUrl(refImages[i]), `${orderNum}_reference_photo_${i + 1}.jpg`);
+                        }
+                        if (sampleImg) {
+                          await downloadImage(getImageUrl(sampleImg), `${orderNum}_sample_inspiration.jpg`);
+                        }
+                        show('Started downloading all photos ✓', 'success');
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1 rounded-xl transition shadow-xs cursor-pointer"
+                    >
+                      <Download size={12} />
+                      Download All Images
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {refImages.map((imgPath: string, idx: number) => {
+                      const url = getImageUrl(imgPath);
+                      const title = `📸 Customer Photo Document ${idx + 1}`;
+                      const filename = `${selectedOrder.orderNumber || 'order'}_photo_${idx + 1}.jpg`;
+                      return (
+                        <div key={idx} className="bg-white p-2 rounded-xl border border-rose-100 shadow-2xs flex flex-col justify-between space-y-1.5">
+                          <p className="text-[10px] font-bold text-charcoal truncate">📸 Photo {idx + 1}</p>
+                          <div
+                            onClick={() => setPreviewModalImg({ url, title, filename })}
+                            className="aspect-square w-full rounded-lg overflow-hidden bg-sand relative group cursor-pointer border border-rose-200/50"
+                          >
+                            <img src={url} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-semibold transition">
+                              Zoom ↗
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(url, filename, `custom-ref-${idx}`)}
+                            className="w-full py-1 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                          >
+                            <Download size={10} />
+                            Download
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {sampleImg && (
+                      <div className="bg-white p-2 rounded-xl border border-rose-100 shadow-2xs flex flex-col justify-between space-y-1.5">
+                        <p className="text-[10px] font-bold text-charcoal truncate">🖼️ Sample Inspiration</p>
+                        <div
+                          onClick={() => setPreviewModalImg({ url: getImageUrl(sampleImg), title: 'Sample Inspiration Reference', filename: `${selectedOrder.orderNumber || 'order'}_sample.jpg` })}
+                          className="aspect-square w-full rounded-lg overflow-hidden bg-sand relative group cursor-pointer border border-rose-200/50"
+                        >
+                          <img src={getImageUrl(sampleImg)} alt="Sample" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-semibold transition">
+                            Zoom ↗
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(getImageUrl(sampleImg), `${selectedOrder.orderNumber || 'order'}_sample.jpg`, 'custom-sample')}
+                          className="w-full py-1 text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                        >
+                          <Download size={10} />
+                          Download
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Interactive Timeline */}
             <div>
@@ -492,24 +662,42 @@ export default function AdminOrders() {
                 {(selectedOrder.items || []).map((item, idx) => (
                   <div key={idx} className="pt-3 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <a
-                        href={item.image || '/images/products/amigurumi-bunny.jpg'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative group shrink-0 block"
-                        title="Click to view full image"
-                      >
-                        <img
-                          src={item.image || '/images/products/amigurumi-bunny.jpg'}
-                          alt={item.name || 'Product'}
-                          className="w-14 h-14 rounded-xl object-cover border border-rose-200 bg-ivory shadow-xs group-hover:scale-105 transition"
-                        />
-                        {selectedOrder.isCustomOrder && (
-                          <span className="absolute -bottom-1.5 -right-1.5 bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
-                            Sample
-                          </span>
-                        )}
-                      </a>
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <div
+                          onClick={() => {
+                            const url = getImageUrl(item.image || '/images/products/amigurumi-bunny.jpg');
+                            setPreviewModalImg({
+                              url,
+                              title: item.name || 'Order Item Image',
+                              filename: `${item.name?.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'item'}.jpg`,
+                            });
+                          }}
+                          className="relative group shrink-0 block cursor-pointer"
+                          title="Click to view full image"
+                        >
+                          <img
+                            src={getImageUrl(item.image || '/images/products/amigurumi-bunny.jpg')}
+                            alt={item.name || 'Product'}
+                            className="w-14 h-14 rounded-xl object-cover border border-rose-200 bg-ivory shadow-xs group-hover:scale-105 transition"
+                          />
+                          {selectedOrder.isCustomOrder && (
+                            <span className="absolute -bottom-1.5 -right-1.5 bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                              Sample
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = getImageUrl(item.image || '/images/products/amigurumi-bunny.jpg');
+                            handleDownload(url, `${item.name?.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'item'}.jpg`, `item-${idx}`);
+                          }}
+                          className="text-[9px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-0.5 mt-0.5 cursor-pointer"
+                          title="Download item photo"
+                        >
+                          <Download size={9} /> Download
+                        </button>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-bold text-charcoal">{item.name || 'Product'}</p>
@@ -569,6 +757,60 @@ export default function AdminOrders() {
                   <Trash2 size={13} /> Delete Order
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zoom / Full Preview Modal */}
+      {previewModalImg && (
+        <div
+          className="fixed inset-0 z-[100] bg-charcoal/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewModalImg(null)}
+        >
+          <div
+            className="relative bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl flex flex-col space-y-4 max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="min-w-0 pr-4">
+                <h3 className="font-display text-base text-charcoal truncate">{previewModalImg.title}</h3>
+                <p className="text-[11px] text-muted truncate">{previewModalImg.filename}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownload(previewModalImg.url, previewModalImg.filename)}
+                  className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Download size={13} />
+                  <span>Download</span>
+                </button>
+                <a
+                  href={previewModalImg.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary py-1.5 px-2.5 text-xs flex items-center gap-1"
+                  title="Open full image in new browser tab"
+                >
+                  <ExternalLink size={13} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalImg(null)}
+                  className="w-8 h-8 rounded-full bg-sand hover:bg-rose-100 flex items-center justify-center text-charcoal transition cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto rounded-2xl bg-sand/30 flex items-center justify-center p-2 min-h-[300px] max-h-[65vh]">
+              <img
+                src={previewModalImg.url}
+                alt={previewModalImg.title}
+                className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-sm"
+              />
             </div>
           </div>
         </div>

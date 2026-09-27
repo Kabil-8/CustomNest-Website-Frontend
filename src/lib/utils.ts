@@ -47,3 +47,42 @@ export function getHandcraftingWindow(fromISO: string): {
     rangeText: `${minDateStr} – ${maxDateStr}`,
   };
 }
+
+const BACKEND_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000').replace(/\/api\/?$/, '');
+
+export function getImageUrl(path?: string | null): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (cleanPath.startsWith('/uploads')) {
+    return `${BACKEND_BASE}${cleanPath}`;
+  }
+  return cleanPath;
+}
+
+export async function downloadImage(url: string, filename: string): Promise<void> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('Failed to fetch image');
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.download = filename;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}

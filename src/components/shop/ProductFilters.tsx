@@ -1,5 +1,6 @@
 import React from 'react';
-import { CATEGORIES } from '../../data/categories';
+import { CATEGORIES as DEFAULT_CATEGORIES } from '../../data/categories';
+import type { Category } from '../../types';
 import { RotateCcw, Check } from 'lucide-react';
 
 interface ProductFiltersProps {
@@ -12,6 +13,7 @@ interface ProductFiltersProps {
   minRating: number;
   onMinRatingChange: (val: number) => void;
   onResetFilters: () => void;
+  categories?: Category[];
 }
 
 export function ProductFilters({
@@ -24,6 +26,7 @@ export function ProductFilters({
   minRating,
   onMinRatingChange,
   onResetFilters,
+  categories = DEFAULT_CATEGORIES,
 }: ProductFiltersProps) {
   return (
     <div className="bg-white rounded-2xl border border-line p-6 shadow-soft space-y-6">
@@ -51,7 +54,7 @@ export function ProductFilters({
             <span>All Categories</span>
             {selectedCategory === 'all' && <Check size={14} />}
           </button>
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const catId = cat.id || cat.slug;
             const isSelected = selectedCategory === catId;
             return (
