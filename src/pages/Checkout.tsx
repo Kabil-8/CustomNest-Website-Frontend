@@ -6,7 +6,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { addresses as addressApi, orders as ordersApi } from '../lib/api';
 import { listActiveColors, type ApiColor } from '../lib/productApi';
-import { ensureWebImageFile } from '../lib/imageUtils';
+import { processScreenshotFile } from '../lib/imageUtils';
 import { formatPrice, classNames } from '../lib/utils';
 import type { Address } from '../types';
 import { Breadcrumb, Spinner, EmptyState } from '../components/ui';
@@ -49,6 +49,7 @@ export default function Checkout() {
   const [showUpiQr, setShowUpiQr] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [processingScreenshot, setProcessingScreenshot] = useState(false);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [availableColors, setAvailableColors] = useState<ApiColor[]>([]);
 
@@ -451,27 +452,52 @@ export default function Checkout() {
 
               {/* Screenshot Upload */}
               <div className="mb-4">
-                <p className="text-xs text-muted mb-2">Upload payment screenshot after paying</p>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-line rounded-xl p-4 cursor-pointer hover:border-rose-400 transition-colors">
-                  {paymentScreenshot ? (
-                    <div className="text-sm">
-                      <p className="text-rose-600 font-medium">✓ {paymentScreenshot.name}</p>
-                      <p className="text-xs text-muted">Click to change</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-bold text-charcoal">Upload payment screenshot after paying</p>
+                  <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                    Max 5MB
+                  </span>
+                </div>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-line rounded-xl p-4 cursor-pointer hover:border-rose-400 transition-colors bg-ivory/40">
+                  {processingScreenshot ? (
+                    <div className="flex items-center gap-2 text-xs text-rose-600 font-semibold py-2">
+                      <Spinner size={16} />
+                      <span>Optimizing screenshot...</span>
+                    </div>
+                  ) : paymentScreenshot ? (
+                    <div className="text-sm text-center">
+                      <p className="text-emerald-600 font-bold">✓ {paymentScreenshot.name}</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        Size: {(paymentScreenshot.size / (1024 * 1024)).toFixed(2)} MB · Click to change
+                      </p>
                     </div>
                   ) : (
-                    <>
-                      <span className="text-sm text-muted">Click to upload screenshot</span>
-                    </>
+                    <div className="flex flex-col items-center gap-1 text-center py-1">
+                      <span className="text-xs font-bold text-charcoal">Click to upload payment screenshot</span>
+                      <span className="text-[10px] text-muted">
+                        Supports PNG, JPG, HEIC, WEBP, AVIF, GIF, BMP (up to 5MB)
+                      </span>
+                    </div>
                   )}
                   <input
                     type="file"
-                    accept="image/*,.heic,.heif"
+                    accept="image/*,.heic,.heif,.avif,.webp,.png,.jpg,.jpeg,.bmp,.gif"
                     className="hidden"
+                    disabled={processingScreenshot}
                     onChange={async (e) => {
                       const rawFile = e.target.files?.[0];
                       if (rawFile) {
-                        const file = await ensureWebImageFile(rawFile);
-                        setPaymentScreenshot(file);
+                        setProcessingScreenshot(true);
+                        try {
+                          const file = await processScreenshotFile(rawFile, 5);
+                          setPaymentScreenshot(file);
+                          show(`Screenshot ready (${(file.size / (1024 * 1024)).toFixed(2)} MB) ✓`, 'success');
+                        } catch (err: unknown) {
+                          show(err instanceof Error ? err.message : 'Please select a valid image under 5MB.', 'error');
+                          e.target.value = '';
+                        } finally {
+                          setProcessingScreenshot(false);
+                        }
                       }
                     }}
                   />
@@ -517,7 +543,8 @@ export default function Checkout() {
                       });
 
                       if (!uploadRes.ok) {
-                        throw new Error('Failed to upload screenshot');
+                        const errData = await uploadRes.json().catch(() => ({}));
+                        throw new Error(errData.message || 'Failed to upload screenshot');
                       }
 
                       clear();
@@ -526,16 +553,16 @@ export default function Checkout() {
                       show('Order placed! We will verify your payment.', 'success');
                       navigate(`/order-confirmation/${pendingOrderId}`);
                       setPendingOrderId(null);
-                    } catch (err) {
-                      show('Failed to upload screenshot. Please try again.', 'error');
+                    } catch (err: unknown) {
+                      show(err instanceof Error ? err.message : 'Failed to upload screenshot. Please try again.', 'error');
                     } finally {
                       setUploadingScreenshot(false);
                     }
                   }}
-                  disabled={!paymentScreenshot || uploadingScreenshot}
+                  disabled={!paymentScreenshot || uploadingScreenshot || processingScreenshot}
                   className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {uploadingScreenshot ? 'Uploading...' : paymentScreenshot ? 'I\'ve Paid' : 'Upload Screenshot First'}
+                  {uploadingScreenshot ? 'Uploading...' : processingScreenshot ? 'Optimizing...' : paymentScreenshot ? 'I\'ve Paid' : 'Upload Screenshot First'}
                 </button>
               </div>
             </div>

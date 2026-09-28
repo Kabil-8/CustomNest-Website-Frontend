@@ -8,7 +8,7 @@ import { addresses as addressApi, customOrders as customOrderApi, orders as orde
 import { classNames } from '../lib/utils';
 import type { Address, CustomOrderRequest } from '../types';
 import { Breadcrumb, Spinner } from '../components/ui';
-import { ensureWebImageFile } from '../lib/imageUtils';
+import { processScreenshotFile } from '../lib/imageUtils';
 import GPayQrCard from '../components/GPayQrCard';
 
 const STEPS = ['Address', 'Review', 'Payment'];
@@ -36,6 +36,7 @@ export default function CustomOrderCheckout() {
   // UPI QR & Screenshot upload state
   const [showUpiQr, setShowUpiQr] = useState(false);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [processingScreenshot, setProcessingScreenshot] = useState(false);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
@@ -143,7 +144,8 @@ export default function CustomOrderCheckout() {
       });
 
       if (!uploadRes.ok) {
-        throw new Error('Failed to upload payment screenshot.');
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to upload payment screenshot.');
       }
 
       setShowUpiQr(false);
@@ -367,33 +369,57 @@ export default function CustomOrderCheckout() {
             
             {/* Payment Screenshot Upload */}
             <div className="mb-5 text-left">
-              <label className="label text-xs mb-1.5 flex items-center justify-between">
-                <span>Upload Payment Screenshot <span className="text-rose-500">*</span></span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="label text-xs mb-0">
+                  <span>Upload Payment Screenshot <span className="text-rose-500">*</span></span>
+                </label>
+                <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                  Max 5MB
+                </span>
+              </div>
               <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-4 cursor-pointer transition-all ${
                 paymentScreenshot ? 'border-emerald-400 bg-emerald-50/50' : 'border-line hover:border-rose-300 bg-ivory/50'
               }`}>
-                {paymentScreenshot ? (
-                  <div className="flex items-center gap-3 text-sm text-center">
+                {processingScreenshot ? (
+                  <div className="flex items-center gap-2 text-xs text-rose-600 font-semibold py-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Optimizing screenshot...</span>
+                  </div>
+                ) : paymentScreenshot ? (
+                  <div className="flex flex-col items-center gap-1 text-sm text-center">
                     <span className="text-emerald-600 font-bold">✓ {paymentScreenshot.name}</span>
-                    <span className="text-xs text-muted">(Click to change)</span>
+                    <span className="text-xs text-muted">
+                      Size: {(paymentScreenshot.size / (1024 * 1024)).toFixed(2)} MB · Click to change
+                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-center py-1">
                     <Upload size={20} className="text-rose-500 mb-1" />
                     <span className="text-xs font-bold text-charcoal">Click to upload payment screenshot</span>
-                    <span className="text-[10px] text-muted">Attach transaction screenshot to verify</span>
+                    <span className="text-[10px] text-muted">
+                      Supports PNG, JPG, HEIC, WEBP, AVIF, GIF, BMP (up to 5MB)
+                    </span>
                   </div>
                 )}
                 <input 
                   type="file" 
-                  accept="image/*,.heic,.heif"
+                  accept="image/*,.heic,.heif,.avif,.webp,.png,.jpg,.jpeg,.bmp,.gif"
                   className="hidden"
+                  disabled={processingScreenshot}
                   onChange={async (e) => {
                     const rawFile = e.target.files?.[0];
                     if (rawFile) {
-                      const file = await ensureWebImageFile(rawFile);
-                      setPaymentScreenshot(file);
+                      setProcessingScreenshot(true);
+                      try {
+                        const file = await processScreenshotFile(rawFile, 5);
+                        setPaymentScreenshot(file);
+                        show(`Screenshot ready (${(file.size / (1024 * 1024)).toFixed(2)} MB) ✓`, 'success');
+                      } catch (err: unknown) {
+                        show(err instanceof Error ? err.message : 'Please select a valid image under 5MB.', 'error');
+                        e.target.value = '';
+                      } finally {
+                        setProcessingScreenshot(false);
+                      }
                     }
                   }}
                 />
@@ -420,12 +446,16 @@ export default function CustomOrderCheckout() {
               </button>
               <button 
                 onClick={handleConfirmQrPayment} 
-                disabled={!paymentScreenshot || uploadingScreenshot}
+                disabled={!paymentScreenshot || uploadingScreenshot || processingScreenshot}
                 className="btn-primary flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lift"
               >
                 {uploadingScreenshot ? (
                   <>
                     <Loader2 size={16} className="animate-spin mr-1" /> Uploading...
+                  </>
+                ) : processingScreenshot ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin mr-1" /> Optimizing...
                   </>
                 ) : paymentScreenshot ? (
                   "I've Paid · Confirm"
