@@ -18,14 +18,24 @@ export function useCategories() {
 
         // Map API categories into the Category type
         const dynamicCats: Category[] = apiCats.map((c) => {
+          let name = c.name;
+          let slug = c.slug;
+          if (slug === 'kids-toys-jumbo' || /jumbo kids/i.test(name)) {
+            name = 'Kids Special';
+            slug = 'kids-special';
+          }
+          if (slug === 'resin-frames' || /resin/i.test(name)) {
+            name = 'Resin Photo Frames';
+            slug = 'resin-frames';
+          }
           const staticMatch = STATIC_CATEGORIES.find(
-            (sc) => sc.slug.toLowerCase() === c.slug.toLowerCase() || sc.name.toLowerCase() === c.name.toLowerCase()
+            (sc) => sc.slug.toLowerCase() === slug.toLowerCase() || sc.name.toLowerCase() === name.toLowerCase()
           );
           return {
-            id: c.slug,
-            slug: c.slug,
-            name: c.name,
-            collection: c.collection || staticMatch?.collection || c.slug,
+            id: slug,
+            slug: slug,
+            name: name,
+            collection: c.collection || staticMatch?.collection || slug,
             image: c.image || staticMatch?.image || '/images/categories/jumbo-flower-bouquets.jpg',
             description: staticMatch?.description,
           };

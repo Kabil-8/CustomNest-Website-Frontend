@@ -113,8 +113,8 @@ export const CATEGORIES: Category[] = [
     image: '/images/categories/mini-toys.jpg',
   },
   {
-    slug: 'kids-toys-jumbo',
-    name: 'Jumbo Kids Toys',
+    slug: 'kids-special',
+    name: 'Kids Special',
     collection: 'plushies',
     image: '/images/categories/kids-toys-jumbo.jpg',
   },

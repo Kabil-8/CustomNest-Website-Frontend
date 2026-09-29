@@ -70,14 +70,31 @@ export interface ProductListParams {
 // ── Normalise API product → frontend Product type ──────────────────────────
 
 import type { Product } from '../types';
+import { CATEGORIES } from '../data/categories';
 
 export function normalizeProduct(p: ApiProduct): Product {
   const cat = p.category as ApiCategory;
-  const catSlug   = typeof cat === 'object' && cat ? cat.slug       : (p.category as string);
-  const catName   = typeof cat === 'object' && cat ? cat.name       : catSlug;
-  const catColl   = typeof cat === 'object' && cat ? cat.collection : catSlug;
-  const primary   = p.images?.[0] ?? (p as any).image ?? '';
+  let catSlug   = typeof cat === 'object' && cat ? cat.slug       : (p.category as string);
+  let catName   = typeof cat === 'object' && cat ? cat.name       : catSlug;
+  const catColl = typeof cat === 'object' && cat ? cat.collection : catSlug;
 
+  if (catSlug === 'kids-toys-jumbo' || /jumbo kids/i.test(catName || '')) {
+    catSlug = 'kids-special';
+    catName = 'Kids Special';
+  }
+  if (catSlug === 'resin-frames' || /resin/i.test(catName || '')) {
+    catName = 'Resin Photo Frames';
+  }
+
+  // If catName is just the slug or empty, look up in CATEGORIES for the official label
+  if (!catName || catName === catSlug) {
+    const match = CATEGORIES.find(c => c.slug.toLowerCase() === catSlug?.toLowerCase());
+    if (match) {
+      catName = match.name;
+    }
+  }
+
+  const primary   = p.images?.[0] ?? (p as any).image ?? '';
   const prodId = p._id ? String(p._id) : String((p as any).id || '');
 
   return {

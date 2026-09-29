@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle, Palette, Ruler, PlusCircle, Home as HomeIcon, Award } from 'lucide-react';
 import { productApi, normalizeProduct, listActiveColors, type ApiCategory, type ApiColor } from '../../lib/productApi';
 import { compressImage } from '../../lib/imageUtils';
+import { CATEGORIES } from '../../data/categories';
 import type { Product } from '../../types';
 import { useToast } from '../../context/ToastContext';
 
@@ -58,11 +59,42 @@ export default function AdminProducts() {
         productApi.listCategories(),
         listActiveColors(),
       ]);
+
+      // Normalize any category objects from API
+      const normalizedCats: ApiCategory[] = (cats || []).map((c) => {
+        let name = c.name;
+        let slug = c.slug;
+        if (slug === 'kids-toys-jumbo' || /jumbo kids/i.test(name)) {
+          name = 'Kids Special';
+          slug = 'kids-special';
+        }
+        if (slug === 'resin-frames' || /resin/i.test(name)) {
+          name = 'Resin Photo Frames';
+          slug = 'resin-frames';
+        }
+        return { ...c, name, slug };
+      });
+
+      // Merge with all known categories so admin CRUD dropdown has all official options
+      const mergedCats: ApiCategory[] = [...normalizedCats];
+      for (const sc of CATEGORIES) {
+        if (!mergedCats.some(m => m.slug.toLowerCase() === sc.slug.toLowerCase())) {
+          mergedCats.push({
+            _id: sc.slug,
+            slug: sc.slug,
+            name: sc.name,
+            collection: sc.collection || sc.slug,
+            image: sc.image || '/images/categories/jumbo-flower-bouquets.jpg',
+          });
+        }
+      }
+      mergedCats.sort((a, b) => a.name.localeCompare(b.name));
+
       setProductList(prodResult.items.map(normalizeProduct));
-      setCategories(cats);
+      setCategories(mergedCats);
       setAllColors(colors);
-      if (cats.length > 0) {
-        setFormData(prev => ({ ...prev, category: cats[0].slug }));
+      if (mergedCats.length > 0) {
+        setFormData(prev => ({ ...prev, category: prev.category || mergedCats[0].slug }));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load products');
@@ -73,10 +105,26 @@ export default function AdminProducts() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // ── Helper to resolve official human-readable category name ─────────────────
+  const getCategoryName = useCallback((p: Product) => {
+    const rawCat = p.category;
+    if (rawCat === 'kids-toys-jumbo' || rawCat === 'kids-special' || p.categoryLabel === 'Jumbo Kids Toys') {
+      return 'Kids Special';
+    }
+    if (rawCat === 'resin-frames' || rawCat === 'resin-photo-frames' || /resin/i.test(p.categoryLabel || '')) {
+      return 'Resin Photo Frames';
+    }
+    const cat = categories.find(c => c.slug.toLowerCase() === rawCat?.toLowerCase() || (c as any)._id === rawCat);
+    if (cat?.name) return cat.name;
+    if (p.categoryLabel && p.categoryLabel !== rawCat) return p.categoryLabel;
+    const fallback = CATEGORIES.find(c => c.slug.toLowerCase() === rawCat?.toLowerCase());
+    return fallback?.name || p.categoryLabel || rawCat || 'Uncategorized';
+  }, [categories]);
+
   // ── Modal helpers ─────────────────────────────────────────────────────────
   const handleOpenCreateModal = () => {
     setEditingProduct(null);
-    setFormData({ ...blankForm, category: categories[0]?.slug ?? '' });
+    setFormData({ ...blankForm, category: categories[0]?.slug ?? 'special-combo-bouquets' });
     setIsModalOpen(true);
   };
 
@@ -85,9 +133,14 @@ export default function AdminProducts() {
     const yarnType = 'normal';
     const normalPrice = (p as any).normalPrice ?? p.price;
     const acrylicPrice = (p as any).acrylicPrice ?? (p.price ? p.price + 100 : 599);
+
+    let catSlug = p.category || '';
+    if (catSlug === 'kids-toys-jumbo') catSlug = 'kids-special';
+    if (catSlug === 'resin-photo-frames') catSlug = 'resin-frames';
+
     setFormData({
       name:           p.name,
-      category:       p.category,
+      category:       catSlug || categories[0]?.slug || 'special-combo-bouquets',
       price:          p.price || normalPrice,
       compareAtPrice: p.compareAtPrice ?? p.originalPrice ?? 0,
       stock:          p.stock,
@@ -260,12 +313,22 @@ export default function AdminProducts() {
 
   // ── Client-side filter for search box & views ────────────────────────────
   const filteredProducts = productList.filter(p => {
-    if (selectedCategory !== 'all' && p.category !== selectedCategory) return false;
+    if (selectedCategory !== 'all') {
+      const matchCat = p.category === selectedCategory ||
+        (selectedCategory === 'kids-special' && (p.category === 'kids-toys-jumbo' || p.category === 'kids-special')) ||
+        (selectedCategory === 'resin-frames' && (p.category === 'resin-frames' || p.category === 'resin-photo-frames'));
+      if (!matchCat) return false;
+    }
     if (filterView === 'top10' && (!p.featuredRank || p.featuredRank === 0 || p.featuredRank > 10)) return false;
     if (filterView === 'home' && !p.showOnHome) return false;
-    if (searchQuery.trim() &&
-      !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !p.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const catLabel = getCategoryName(p).toLowerCase();
+      if (!p.name.toLowerCase().includes(q) &&
+          !p.category.toLowerCase().includes(q) &&
+          !catLabel.includes(q) &&
+          !p.id.toLowerCase().includes(q)) return false;
+    }
     return true;
   });
 
@@ -457,7 +520,11 @@ export default function AdminProducts() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-muted">{p.categoryLabel}</td>
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50/80 text-rose-800 border border-rose-200/70">
+                        {getCategoryName(p)}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 font-bold text-rose-600">₹{p.price}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2.5 py-1 rounded-full text-[0.65rem] font-bold ${

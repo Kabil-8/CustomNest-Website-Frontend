@@ -33,9 +33,9 @@ const HERO_SLIDES = [
   },
   {
     src: '/images/categories/kids-toys-jumbo.jpg',
-    alt: 'Crochet Kids Toys — fun and safe',
-    label: 'Kids Toys',
-    category: 'kids-toys-jumbo',
+    alt: 'Crochet Kids Special — fun and safe',
+    label: 'Kids Special',
+    category: 'kids-special',
   },
   {
     src: '/images/categories/special-combo-bouquets.jpg',
