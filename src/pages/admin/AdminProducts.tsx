@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle, Palette, Ruler, PlusCircle, Home as HomeIcon, Award } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Edit3, Trash2, X, Image as ImageIcon, Upload, Star, Loader2, AlertTriangle, Palette, Ruler, PlusCircle, Home as HomeIcon, Award, FolderTree } from 'lucide-react';
 import { productApi, normalizeProduct, listActiveColors, type ApiCategory, type ApiColor } from '../../lib/productApi';
 import { compressImage } from '../../lib/imageUtils';
 import { CATEGORIES } from '../../data/categories';
@@ -346,10 +347,20 @@ export default function AdminProducts() {
             Product Catalog ({loading ? '…' : productList.length})
           </h1>
         </div>
-        <button onClick={handleOpenCreateModal} className="btn-primary flex items-center gap-2 py-3 px-5">
-          <Plus size={18} />
-          <span>Add New Product</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/admin/categories"
+            className="btn-secondary flex items-center gap-2 py-3 px-4 text-xs font-semibold"
+            title="Manage, create or edit product categories"
+          >
+            <FolderTree size={16} className="text-rose-600" />
+            <span>Manage Categories</span>
+          </Link>
+          <button onClick={handleOpenCreateModal} className="btn-primary flex items-center gap-2 py-3 px-5">
+            <Plus size={18} />
+            <span>Add New Product</span>
+          </button>
+        </div>
       </div>
 
       {/* Allocation Overview Bar */}
@@ -620,7 +631,19 @@ export default function AdminProducts() {
               {/* Category & Stock */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label text-xs" htmlFor="p-cat">Category *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label text-xs mb-0" htmlFor="p-cat">Category *</label>
+                    <Link
+                      to="/admin/categories"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[0.68rem] text-rose-600 hover:text-rose-800 font-semibold hover:underline flex items-center gap-1"
+                      title="Open Category Manager in new tab"
+                    >
+                      <FolderTree size={11} />
+                      <span>Add / Edit Categories ↗</span>
+                    </Link>
+                  </div>
                   <select
                     id="p-cat"
                     value={formData.category}

@@ -200,6 +200,26 @@ export const productApi = {
     return data.categories;
   },
 
+  async createCategory(body: { name: string; slug?: string; collection?: string; image?: string }): Promise<ApiCategory> {
+    const data = await apiFetch<{ category: ApiCategory }>('/products/categories', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return data.category;
+  },
+
+  async updateCategory(id: string, body: Partial<{ name: string; slug: string; collection: string; image: string }>): Promise<ApiCategory> {
+    const data = await apiFetch<{ category: ApiCategory }>(`/products/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    return data.category;
+  },
+
+  async deleteCategory(id: string): Promise<void> {
+    await apiFetch<void>(`/products/categories/${id}`, { method: 'DELETE' });
+  },
+
   // Admin-only mutations
   async create(body: Record<string, unknown>): Promise<ApiProduct> {
     const data = await apiFetch<{ product: ApiProduct }>('/products', {

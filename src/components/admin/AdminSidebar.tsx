@@ -12,6 +12,7 @@ import {
   Receipt,
   Palette,
   Star,
+  FolderTree,
   Mail,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +35,7 @@ const ADMIN_LINKS: {
 }[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/products', label: 'Products', icon: Package },
+  { to: '/admin/categories', label: 'Categories', icon: FolderTree },
   { to: '/admin/colors', label: 'Design Colors', icon: Palette },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, badgeKey: 'orders' },
   { to: '/admin/customers', label: 'Customers', icon: Users },
