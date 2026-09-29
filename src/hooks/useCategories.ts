@@ -24,7 +24,7 @@ export function useCategories() {
             name = 'Kids Special';
             slug = 'kids-special';
           }
-          if (slug === 'resin-frames' || /resin/i.test(name)) {
+          if (slug === 'resin-photo-frames' || /^resin\s*photo\s*frames?$/i.test(name)) {
             name = 'Resin Photo Frames';
             slug = 'resin-frames';
           }

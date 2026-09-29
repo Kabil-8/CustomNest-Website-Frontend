@@ -70,7 +70,7 @@ export default function AdminProducts() {
           name = 'Kids Special';
           slug = 'kids-special';
         }
-        if (slug === 'resin-frames' || /resin/i.test(name)) {
+        if (slug === 'resin-photo-frames' || /^resin\s*photo\s*frames?$/i.test(name)) {
           name = 'Resin Photo Frames';
           slug = 'resin-frames';
         }
@@ -113,7 +113,7 @@ export default function AdminProducts() {
     if (rawCat === 'kids-toys-jumbo' || rawCat === 'kids-special' || p.categoryLabel === 'Jumbo Kids Toys') {
       return 'Kids Special';
     }
-    if (rawCat === 'resin-frames' || rawCat === 'resin-photo-frames' || /resin/i.test(p.categoryLabel || '')) {
+    if (rawCat === 'resin-frames' || rawCat === 'resin-photo-frames' || /^resin\s*photo\s*frames?$/i.test(p.categoryLabel || '')) {
       return 'Resin Photo Frames';
     }
     const cat = categories.find(c => c.slug.toLowerCase() === rawCat?.toLowerCase() || (c as any)._id === rawCat);

@@ -84,7 +84,7 @@ export function normalizeProduct(p: ApiProduct): Product {
     catSlug = 'kids-special';
     catName = 'Kids Special';
   }
-  if (catSlug === 'resin-frames' || /resin/i.test(catName || '')) {
+  if (catSlug === 'resin-frames' || catSlug === 'resin-photo-frames' || /^resin\s*photo\s*frames?$/i.test(catName || '')) {
     catName = 'Resin Photo Frames';
   }
 
