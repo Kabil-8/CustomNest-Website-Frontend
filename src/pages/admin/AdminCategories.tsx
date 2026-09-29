@@ -14,9 +14,11 @@ import {
   Package,
   Layers,
   Sparkles,
+  Upload,
 } from 'lucide-react';
 import { productApi, type ApiCategory } from '../../lib/productApi';
 import { CATEGORIES, COLLECTIONS } from '../../data/categories';
+import { compressImage } from '../../lib/imageUtils';
 import { useToast } from '../../context/ToastContext';
 
 export default function AdminCategories() {
@@ -32,6 +34,7 @@ export default function AdminCategories() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ApiCategory | null>(null);
   const [saving, setSaving] = useState(false);
+  const [compressingCover, setCompressingCover] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +42,22 @@ export default function AdminCategories() {
     collection: '',
     image: '',
   });
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompressingCover(true);
+    try {
+      const compressed = await compressImage(file, 1200, 800, 0.82);
+      setFormData((prev) => ({ ...prev, image: compressed }));
+      show('Cover photo uploaded & optimized ✓', 'success');
+    } catch (err: unknown) {
+      show(err instanceof Error ? err.message : 'Failed to process cover photo', 'error');
+    } finally {
+      setCompressingCover(false);
+      e.target.value = '';
+    }
+  };
 
   const loadCategories = useCallback(async () => {
     setLoading(true);
@@ -522,32 +541,91 @@ export default function AdminCategories() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Cover Image Upload (not path) */}
               <div>
-                <label className="label text-xs">Cover Image Path / URL</label>
-                <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, image: e.target.value }))}
-                  placeholder="e.g. /images/categories/kids-toys-jumbo.jpg"
-                  className="input text-xs font-mono"
-                />
-                {formData.image && (
-                  <div className="mt-2 flex items-center gap-3 bg-ivory p-2.5 rounded-xl border border-line">
+                <label className="label text-xs">Category Cover Photo</label>
+
+                {formData.image ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-line bg-ivory shadow-xs group">
                     <img
                       src={formData.image}
-                      alt="Preview"
-                      className="w-12 h-12 rounded-lg object-cover border border-line"
+                      alt="Category Cover Preview"
+                      className="w-full h-44 object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
                           '/images/categories/jumbo-flower-bouquets.jpg';
                       }}
                     />
-                    <div className="text-[0.68rem] text-muted">
-                      <p className="font-bold text-charcoal">Cover Preview</p>
-                      <p className="truncate max-w-xs">{formData.image}</p>
+                    <div className="absolute inset-0 bg-charcoal/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 p-4">
+                      <label className="btn-secondary py-2 px-3 text-xs bg-white/95 hover:bg-white text-charcoal flex items-center gap-1.5 cursor-pointer shadow-md">
+                        <Upload size={14} />
+                        <span>Change Cover</span>
+                        <input
+                          type="file"
+                          accept="image/*,.heic,.heif,.webp,.png,.jpg,.jpeg"
+                          className="hidden"
+                          onChange={handleCoverUpload}
+                          disabled={compressingCover}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, image: '' }))}
+                        className="py-2 px-3 text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                    <div className="p-3 bg-white/95 border-t border-line flex items-center justify-between text-xs">
+                      <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        ✓ Cover photo ready
+                      </span>
+                      <label className="text-rose-600 hover:text-rose-800 font-semibold cursor-pointer text-[0.72rem]">
+                        Upload Different Photo
+                        <input
+                          type="file"
+                          accept="image/*,.heic,.heif,.webp,.png,.jpg,.jpeg"
+                          className="hidden"
+                          onChange={handleCoverUpload}
+                          disabled={compressingCover}
+                        />
+                      </label>
                     </div>
                   </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-line hover:border-rose-400 rounded-2xl p-6 cursor-pointer transition-colors bg-cream/20 hover:bg-rose-50/30 text-center">
+                    {compressingCover ? (
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <Loader2 size={24} className="animate-spin text-rose-500" />
+                        <span className="text-xs font-semibold text-rose-700">
+                          Optimizing & uploading cover photo...
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-2xl bg-rose-100/70 text-rose-600 flex items-center justify-center mb-3">
+                          <Upload size={22} />
+                        </div>
+                        <p className="text-xs font-bold text-charcoal">
+                          Click or drag to upload category cover photo
+                        </p>
+                        <p className="text-[0.68rem] text-muted mt-1 max-w-xs">
+                          Supports PNG, JPG, WEBP, and HEIC camera photos (automatically compressed)
+                        </p>
+                        <span className="btn-secondary py-1.5 px-3 text-xs mt-3">
+                          Browse File
+                        </span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif,.webp,.png,.jpg,.jpeg"
+                      className="hidden"
+                      onChange={handleCoverUpload}
+                      disabled={compressingCover}
+                    />
+                  </label>
                 )}
               </div>
 

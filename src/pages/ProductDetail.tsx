@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { ProductCard } from '../components/ProductCard';
 import { BlurText } from '../components/reactbits/BlurText';
 import { reviews as reviewsApi, type ApiReview } from '../lib/api';
+import { productApi, isProductAddon } from '../lib/productApi';
+import type { Product } from '../types';
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -39,6 +41,23 @@ export default function ProductDetail() {
   const [myRatingHover, setMyRatingHover]   = useState(0);
   const [myComment, setMyComment]           = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // ── Suggested Add-ons state ───────────────────────────────────────────────
+  const [suggestedAddons, setSuggestedAddons] = useState<Product[]>([]);
+  const [addedAddonIds, setAddedAddonIds]     = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    productApi.listAddons().then((list) => {
+      setSuggestedAddons(list.filter((a) => a.id !== product?.id));
+    }).catch(() => {});
+  }, [product?.id]);
+
+  const handleAddAddon = (addon: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    addItem(addon, 1);
+    setAddedAddonIds((prev) => new Set(prev).add(addon.id));
+    show(`Added "${addon.name}" to cart (Free shipping applied!) ✓`, 'success');
+  };
 
   // Sync active image when product loads
   useEffect(() => {
@@ -332,9 +351,15 @@ export default function ProductDetail() {
                     +₹{selectedSizeObj.priceModifier} for {selectedSizeObj.label}
                   </span>
                 )}
-                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                  Inclusive of all taxes
-                </span>
+                {product && isProductAddon(product) ? (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100/90 border border-emerald-300 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    ✨ Add-On · Zero Shipping Fee
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                    Inclusive of all taxes
+                  </span>
+                )}
               </div>
 
               <p className="text-sm text-muted leading-relaxed">{product.description}</p>
@@ -510,6 +535,78 @@ export default function ProductDetail() {
                 <span className="text-[0.7rem] font-medium text-charcoal block">Custom Requests</span>
               </div>
             </div>
+
+            {/* Suggested Add-Ons (Right-Column Quick Add) */}
+            {suggestedAddons.length > 0 && (
+              <div className="p-4 rounded-2xl bg-cream/40 border border-line/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-500" />
+                    <span className="font-display text-sm font-semibold text-charcoal">
+                      Suggested Add-Ons
+                    </span>
+                  </div>
+                  <span className="text-[0.68rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                    Free Shipping on Add-Ons!
+                  </span>
+                </div>
+                <p className="text-[0.72rem] text-muted">
+                  Enhance your gift with matching extras (₹0 extra shipping fee):
+                </p>
+                <div className="space-y-2">
+                  {suggestedAddons.slice(0, 4).map((addon) => {
+                    const isAdded = addedAddonIds.has(addon.id);
+                    return (
+                      <div
+                        key={addon.id}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-line hover:border-rose-200 transition-all shadow-xs"
+                      >
+                        <Link to={`/products/${addon.slug}`} className="flex items-center gap-3 min-w-0 flex-1 group">
+                          <img
+                            src={addon.image}
+                            alt={addon.name}
+                            className="w-11 h-11 rounded-lg object-cover bg-sand/40 shrink-0 border border-line"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-charcoal group-hover:text-rose-600 transition-colors truncate">
+                              {addon.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-bold text-rose-600">
+                                ₹{addon.price}
+                              </span>
+                              <span className="text-[0.65rem] text-emerald-600 font-medium">
+                                · Free Delivery
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => handleAddAddon(addon, e)}
+                          className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shrink-0 cursor-pointer ${
+                            isAdded
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                          }`}
+                        >
+                          {isAdded ? (
+                            <>
+                              <Check size={12} />
+                              <span>Added</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>+ Add</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -655,6 +752,33 @@ export default function ProductDetail() {
             )}
           </div>
         </div>
+
+        {/* Suggested Add-Ons Showcase */}
+        {suggestedAddons.length > 0 && (
+          <div className="mb-16">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+              <div>
+                <span className="eyebrow mb-1 text-emerald-700">🎁 Bundle & Save Shipping</span>
+                <h2 className="font-display text-2xl text-charcoal">Recommended Add-Ons & Extras</h2>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full w-fit">
+                Zero Extra Shipping Money on Add-Ons!
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+              {suggestedAddons.map((addon) => (
+                <div key={addon.id} className="relative group">
+                  <ProductCard product={addon} />
+                  <div className="absolute top-3 left-3 pointer-events-none">
+                    <span className="bg-emerald-600 text-white text-[0.62rem] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      Free Shipping
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Related Products */}
         {related.length > 0 && (

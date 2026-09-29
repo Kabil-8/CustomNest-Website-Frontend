@@ -40,6 +40,7 @@ export default function AdminProducts() {
     customizable: true,
     allowCustomName: false,
     shippingCharge: '' as number | '',  // '' = not set (use global rate)
+    isAddon: false,
     yarnType: 'normal',
     normalPrice: 499,
     acrylicPrice: 599,
@@ -153,6 +154,7 @@ export default function AdminProducts() {
       customizable:   !!p.customization,
       allowCustomName: !!(p as any).allowCustomName,
       shippingCharge: (p as any).shippingCharge ?? '',
+      isAddon:        Boolean((p as any).isAddon || p.category === 'add-ons' || p.category === '6a7849c1abe39c4544be29d9'),
       yarnType:       yarnType,
       normalPrice:    normalPrice,
       acrylicPrice:   acrylicPrice,
@@ -271,7 +273,8 @@ export default function AdminProducts() {
       showOnHome:   Boolean(formData.showOnHome),
       customizable: formData.customizable,
       allowCustomName: formData.allowCustomName,
-      shippingCharge: formData.shippingCharge !== '' ? Number(formData.shippingCharge) : null,
+      shippingCharge: formData.isAddon ? 0 : (formData.shippingCharge !== '' ? Number(formData.shippingCharge) : null),
+      isAddon:        Boolean(formData.isAddon),
       yarnType:     yarnType,
       normalPrice:  normalPrice,
       acrylicPrice: acrylicPrice,
@@ -532,9 +535,16 @@ export default function AdminProducts() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50/80 text-rose-800 border border-rose-200/70">
-                        {getCategoryName(p)}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50/80 text-rose-800 border border-rose-200/70">
+                          {getCategoryName(p)}
+                        </span>
+                        {(p.isAddon || p.category === 'add-ons' || p.category === '6a7849c1abe39c4544be29d9') && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.62rem] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            ✨ Add-On (Free Shipping)
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 font-bold text-rose-600">₹{p.price}</td>
                     <td className="py-3 px-4">
@@ -981,6 +991,26 @@ export default function AdminProducts() {
                   <p className="text-[0.65rem] text-muted leading-relaxed pl-6">
                     If enabled, a &ldquo;Custom Name / Monogram&rdquo; text field will appear on the product page.
                     Disable for products where personalisation is not applicable.
+                  </p>
+                </div>
+
+                {/* Mark as Add-On Item */}
+                <div className="space-y-1 p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-200/80">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-xs text-charcoal">
+                    <input
+                      type="checkbox"
+                      checked={formData.isAddon}
+                      onChange={e => setFormData({
+                        ...formData,
+                        isAddon: e.target.checked,
+                        ...(e.target.checked ? { shippingCharge: 0 } : {})
+                      })}
+                      className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-200"
+                    />
+                    <span>Mark as Add-On / Extra Item (Suggested on Product Pages)</span>
+                  </label>
+                  <p className="text-[0.65rem] text-muted leading-relaxed pl-6">
+                    Add-on items are automatically suggested across product pages and enjoy <strong className="text-emerald-700">₹0 extra shipping money</strong> for customers.
                   </p>
                 </div>
 

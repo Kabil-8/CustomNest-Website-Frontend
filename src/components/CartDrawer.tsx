@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuthGate } from '../context/AuthGateContext';
+import { productApi } from '../lib/productApi';
+import type { Product } from '../types';
 
 export function CartDrawer() {
-  const { items, isOpen, closeDrawer, updateQuantity, removeItem, subtotal } = useCart();
+  const { items, isOpen, closeDrawer, updateQuantity, removeItem, subtotal, addItem } = useCart();
   const { requireAuth } = useAuthGate();
   const navigate = useNavigate();
+  const [drawerAddons, setDrawerAddons] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      productApi.listAddons().then(setDrawerAddons).catch(() => {});
+    }
+  }, [isOpen]);
 
   const handleCheckoutClick = () => {
     requireAuth(() => {
@@ -131,6 +140,54 @@ export function CartDrawer() {
                 </div>
               )}
             </div>
+
+            {/* Suggested Add-ons (Free Shipping) */}
+            {items.length > 0 && drawerAddons.length > 0 && (
+              <div className="px-6 py-3 border-t border-line/80 bg-sand/30 space-y-2 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-charcoal">
+                    <Sparkles size={13} className="text-amber-500" />
+                    <span>Suggested Add-Ons</span>
+                  </div>
+                  <span className="text-[0.62rem] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Free Shipping
+                  </span>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                  {drawerAddons.map((addon) => {
+                    const inCart = items.some((i) => i.product.id === addon.id);
+                    return (
+                      <div
+                        key={addon.id}
+                        className="flex items-center gap-2 p-2 rounded-xl bg-white border border-line shrink-0 w-48 shadow-xs"
+                      >
+                        <img
+                          src={addon.image}
+                          alt={addon.name}
+                          className="w-9 h-9 rounded-lg object-cover bg-sand/20 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[0.72rem] font-semibold text-charcoal truncate">{addon.name}</p>
+                          <p className="text-[0.7rem] font-bold text-rose-600">₹{addon.price}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => addItem(addon, 1)}
+                          disabled={inCart}
+                          className={`px-2 py-1 rounded-lg text-[0.68rem] font-bold shrink-0 transition-colors cursor-pointer ${
+                            inCart
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
+                          }`}
+                        >
+                          {inCart ? '✓' : '+ Add'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Drawer Footer Subtotal & Action Buttons */}
             {items.length > 0 && (

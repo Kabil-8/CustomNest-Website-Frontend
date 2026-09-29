@@ -31,6 +31,8 @@ export interface Product {
   allowCustomName?: boolean;
   // Per-product shipping override (₹). null/undefined = use global rate
   shippingCharge?: number | null;
+  // Flag indicating if this product is an add-on item (free shipping, suggested on product pages)
+  isAddon?: boolean;
   availableColors?: { id: string; name: string; hexCode: string }[];
   sizes?: { label: string; priceModifier: number }[];
   yarnType?: 'normal' | 'acrylic' | 'both';

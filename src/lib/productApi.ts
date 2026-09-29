@@ -37,6 +37,8 @@ export interface ApiProduct {
   allowCustomName?: boolean;
   // Per-product shipping override (₹). null = use global rate
   shippingCharge?: number | null;
+  // Flag indicating if product is an add-on item (free shipping, suggested on product pages)
+  isAddon?: boolean;
   stock: number;
   rating: number;
   reviewCount: number;
@@ -121,6 +123,7 @@ export function normalizeProduct(p: ApiProduct): Product {
     customizable:   p.customizable,
     allowCustomName: p.allowCustomName ?? false,
     shippingCharge:  p.shippingCharge ?? null,
+    isAddon:         Boolean(p.isAddon || (typeof p.category === 'object' && p.category?.slug === 'add-ons') || p.category === 'add-ons' || p.category === '6a7849c1abe39c4544be29d9'),
     customization:  p.customizable
       ? { colors: [], textAllowed: true }
       : undefined,
@@ -240,7 +243,29 @@ export const productApi = {
   async remove(id: string): Promise<void> {
     await apiFetch<void>(`/products/${id}`, { method: 'DELETE' });
   },
+
+  // ── Fetch all available Add-ons for product suggestions ──────────────────
+  async listAddons(): Promise<Product[]> {
+    try {
+      const res = await productApi.list({ category: 'add-ons', limit: 20 });
+      const items = res.items.map(normalizeProduct);
+      if (items.length > 0) return items;
+    } catch { /* fallback */ }
+    try {
+      const res = await productApi.list({ limit: 100 });
+      return res.items.map(normalizeProduct).filter(isProductAddon);
+    } catch {
+      return [];
+    }
+  },
 };
+
+export function isProductAddon(p: { isAddon?: boolean; category?: any }): boolean {
+  if (p.isAddon) return true;
+  const cat = typeof p.category === 'object' ? p.category?.slug || p.category?.name || '' : String(p.category || '');
+  const lower = cat.toLowerCase();
+  return lower === 'add-ons' || lower === 'addon' || lower.includes('add-on') || cat === '6a7849c1abe39c4544be29d9';
+}
 
 // ── Active colors (public) — used in product customizer & custom order form ──
 export interface ApiColor {

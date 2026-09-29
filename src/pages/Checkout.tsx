@@ -93,8 +93,21 @@ export default function Checkout() {
   const outerState = activeState ? !isTamilNadu(activeState) : false;
   const globalShippingRate = outerState ? SHIPPING_OUTER : SHIPPING_TN;
 
-  // Per-product shipping override: take the max shippingCharge from all cart items
-  const maxProductShipping = items.reduce<number | null>((acc, item) => {
+  // Check if cart item is an add-on item
+  const isItemAddon = (item: { product: { isAddon?: boolean; category?: any } }) => {
+    if (item.product.isAddon) return true;
+    const cat = typeof item.product.category === 'object'
+      ? item.product.category?.slug || item.product.category?.name || ''
+      : String(item.product.category || '');
+    const lower = cat.toLowerCase();
+    return lower === 'add-ons' || lower === 'addon' || lower.includes('add-on') || cat === '6a7849c1abe39c4544be29d9';
+  };
+
+  const regularItems = items.filter((item) => !isItemAddon(item));
+  const hasRegularProducts = regularItems.length > 0;
+
+  // Per-product shipping override: only non-addon items can contribute to shipping
+  const maxProductShipping = regularItems.reduce<number | null>((acc, item) => {
     const charge = item.product.shippingCharge;
     if (charge !== null && charge !== undefined) {
       return acc === null ? charge : Math.max(acc, charge);
@@ -102,7 +115,11 @@ export default function Checkout() {
     return acc;
   }, null);
 
-  const shipping = maxProductShipping !== null ? maxProductShipping : globalShippingRate;
+  // If order has regular products: regular shipping applies (add-ons do not increase shipping)
+  // If order has ONLY add-ons: 0 shipping money!
+  const shipping = hasRegularProducts
+    ? (maxProductShipping !== null ? maxProductShipping : globalShippingRate)
+    : 0;
   const total = subtotal + shipping;
 
   const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
@@ -579,13 +596,24 @@ export default function Checkout() {
             <div className="flex justify-between text-muted">
               <span className="flex flex-col">
                 <span>Shipping</span>
-                {activeState && (
+                {items.some(isItemAddon) && (
+                  <span className="text-[0.68rem] text-emerald-600 font-semibold mt-0.5">
+                    ✨ Free shipping on Add-ons
+                  </span>
+                )}
+                {hasRegularProducts && activeState && (
                   <span className="text-[0.65rem] text-muted/70 mt-0.5">
                     {outerState ? 'Outside Tamil Nadu' : 'Tamil Nadu'}
                   </span>
                 )}
               </span>
-              <span className="text-charcoal font-medium">{formatPrice(shipping)}</span>
+              <span className="text-charcoal font-medium">
+                {shipping === 0 ? (
+                  <span className="text-emerald-600 font-bold">FREE</span>
+                ) : (
+                  formatPrice(shipping)
+                )}
+              </span>
             </div>
             <div className="border-t border-line pt-2.5 flex justify-between font-semibold text-base">
               <span>Total</span>

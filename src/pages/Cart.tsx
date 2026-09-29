@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ArrowRight, Palette } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { listActiveColors, type ApiColor } from '../lib/productApi';
+import { listActiveColors, isProductAddon, type ApiColor } from '../lib/productApi';
 import { formatPrice } from '../lib/utils';
 import { Breadcrumb, EmptyState } from '../components/ui';
 
@@ -19,7 +19,9 @@ export default function Cart() {
       .catch(() => {});
   }, []);
 
-  const shipping = items.length === 0 || subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+  const hasRegularProducts = items.some((item) => !isProductAddon(item.product));
+  const hasOnlyAddons = items.length > 0 && !hasRegularProducts;
+  const shipping = items.length === 0 || hasOnlyAddons || subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
   const total = subtotal + shipping;
 
   return (
@@ -67,7 +69,14 @@ export default function Cart() {
                           <Link to={`/products/${item.product.slug}`} className="font-display text-lg hover:text-rose-600">
                             {item.product.name}
                           </Link>
-                          <p className="text-xs text-muted mt-0.5">{item.product.categoryLabel}</p>
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <span className="text-xs text-muted">{item.product.categoryLabel}</span>
+                            {isProductAddon(item.product) && (
+                              <span className="inline-flex items-center gap-1 text-[0.65rem] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                ✨ Add-On · Free Shipping
+                              </span>
+                            )}
+                          </div>
                           {item.customization && (
                             <p className="text-xs text-rose-600 font-medium mt-1">
                               {[
@@ -183,7 +192,14 @@ export default function Cart() {
                 <span className="text-charcoal font-medium">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-muted">
-                <span>Shipping</span>
+                <span className="flex flex-col">
+                  <span>Shipping</span>
+                  {items.some((item) => isProductAddon(item.product)) && (
+                    <span className="text-[0.68rem] text-emerald-600 font-semibold">
+                      ✨ Free shipping on Add-ons
+                    </span>
+                  )}
+                </span>
                 <span className="text-charcoal font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
               </div>
               {shipping > 0 && (
