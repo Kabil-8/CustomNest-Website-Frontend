@@ -190,6 +190,8 @@ export default function Checkout() {
       show('Order placed successfully!', 'success');
       navigate(`/order-confirmation/${order.id}`);
     } catch (err) {
+      setPendingOrderId(null);
+      setShowUpiQr(false);
       show(err instanceof Error ? err.message : 'Something went wrong placing your order. Please try again.', 'error');
     } finally {
       setPlacing(false);
