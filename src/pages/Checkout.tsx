@@ -546,23 +546,8 @@ export default function Checkout() {
                     }
                     setUploadingScreenshot(true);
                     try {
-                      // Upload screenshot to backend
-                      const formData = new FormData();
-                      formData.append('paymentScreenshot', paymentScreenshot);
-
-                      const token = localStorage.getItem('tcn_token');
-                      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
-                      const uploadRes = await fetch(`${apiBase}/api/orders/${pendingOrderId}/upload-screenshot`, {
-                        method: 'POST',
-                        headers: token ? { Authorization: `Bearer ${token}` } : {},
-                        body: formData,
-                        credentials: 'include',
-                      });
-
-                      if (!uploadRes.ok) {
-                        const errData = await uploadRes.json().catch(() => ({}));
-                        throw new Error(errData.message || 'Failed to upload screenshot');
-                      }
+                      // Upload screenshot to backend via API client
+                      await ordersApi.uploadPaymentScreenshot(pendingOrderId, paymentScreenshot);
 
                       clear();
                       setShowUpiQr(false);

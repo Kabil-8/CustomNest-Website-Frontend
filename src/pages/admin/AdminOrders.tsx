@@ -15,7 +15,8 @@ export default function AdminOrders() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string; filename: string } | null>(null);
+  const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string; filename: string; orderId?: string } | null>(null);
+  const [modalImgFailed, setModalImgFailed] = useState(false);
   const [downloadingImg, setDownloadingImg] = useState<string | null>(null);
 
   // Delivery update form in modal
@@ -23,6 +24,18 @@ export default function AdminOrders() {
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [courier, setCourier] = useState<string>('');
   const [tracking, setTracking] = useState<string>('');
+
+  const handleDeleteScreenshot = async (orderId: string) => {
+    if (!window.confirm('Delete this payment screenshot permanently to free up storage space?')) return;
+    try {
+      const updated = await ordersApi.deletePaymentScreenshot(orderId);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+      setPreviewModalImg(null);
+      show('Payment screenshot deleted and storage freed ✓', 'success');
+    } catch {
+      show('Failed to delete screenshot', 'error');
+    }
+  };
 
   const handleDownload = async (url: string, filename: string, key?: string) => {
     if (key) setDownloadingImg(key);
@@ -226,10 +239,12 @@ export default function AdminOrders() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setModalImgFailed(false);
                                 setPreviewModalImg({
                                   url: getImageUrl(o.paymentScreenshot),
                                   title: `Payment Screenshot Proof (${o.orderNumber || o.id})`,
                                   filename: `payment_proof_${o.orderNumber || o.id.slice(-6)}.jpg`,
+                                  orderId: o.id,
                                 });
                               }}
                               className="inline-flex items-center gap-1 text-[0.62rem] font-bold text-emerald-800 bg-emerald-100/90 hover:bg-emerald-200 border border-emerald-300 px-2 py-0.5 rounded-full transition cursor-pointer"
@@ -795,6 +810,17 @@ export default function AdminOrders() {
                 >
                   <ExternalLink size={13} />
                 </a>
+                {previewModalImg.orderId && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteScreenshot(previewModalImg.orderId!)}
+                    className="btn-secondary py-1.5 px-2.5 text-xs text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 flex items-center gap-1 cursor-pointer"
+                    title="Delete screenshot to free storage"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setPreviewModalImg(null)}
@@ -806,11 +832,31 @@ export default function AdminOrders() {
             </div>
 
             <div className="flex-1 overflow-auto rounded-2xl bg-sand/30 flex items-center justify-center p-2 min-h-[300px] max-h-[65vh]">
-              <img
-                src={previewModalImg.url}
-                alt={previewModalImg.title}
-                className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-sm"
-              />
+              {modalImgFailed ? (
+                <div className="flex flex-col items-center justify-center text-center p-6 max-w-md">
+                  <p className="text-sm font-bold text-amber-800 mb-1">Image Expired on Server</p>
+                  <p className="text-xs text-muted leading-relaxed mb-4">
+                    This file was saved on Render's temporary disk before permanent MongoDB Atlas persistence was enabled.
+                  </p>
+                  {previewModalImg.orderId && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteScreenshot(previewModalImg.orderId!)}
+                      className="btn-primary py-1.5 px-3 text-xs bg-red-600 hover:bg-red-700 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete Screenshot Slot</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <img
+                  src={previewModalImg.url}
+                  alt={previewModalImg.title}
+                  onError={() => setModalImgFailed(true)}
+                  className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-sm"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -818,3 +864,4 @@ export default function AdminOrders() {
     </div>
   );
 }
+

@@ -5,7 +5,8 @@
 // ---------------------------------------------------------------------------
 import type { Address, CustomOrderMessage, CustomOrderRequest, Order, OrderStatus, User } from '../types';
 
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+const rawBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+const BASE = rawBase.replace(/\/api\/?$/, '').replace(/\/+$/, '') + '/api';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -262,6 +263,21 @@ export const orders = {
   async deletePaymentScreenshot(orderId: string): Promise<Order> {
     const data = await req<{ order: Order }>(`/orders/${orderId}/payment-screenshot`, { method: 'DELETE' });
     return data.order;
+  },
+  async uploadPaymentScreenshot(orderId: string, file: File): Promise<Order> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('paymentScreenshot', file);
+
+    const res = await fetch(`${BASE}/orders/${orderId}/upload-screenshot`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(body.message ?? `API error ${res.status}`, res.status);
+    return body.order;
   },
 };
 
