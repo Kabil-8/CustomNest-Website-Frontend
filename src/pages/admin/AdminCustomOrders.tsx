@@ -256,11 +256,14 @@ function ChatThread({ request, onUpdated }: {
 
 function getImageUrl(url?: string): string {
   if (!url) return '';
-  if (url.startsWith('/uploads')) {
-    const base = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
-    return `${base.replace(/\/$/, '')}${url}`;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
   }
-  return url;
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/+$/, '');
+  return `${base}${cleanPath}`;
 }
 
 async function downloadImage(
