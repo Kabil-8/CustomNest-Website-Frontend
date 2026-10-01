@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { AdminSidebar } from '../../components/admin/AdminSidebar';
-import { Menu, Bell, ShieldCheck, User } from 'lucide-react';
+import { NotificationBell } from '../../components/admin/NotificationBell';
+import { Menu, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLayout() {
@@ -27,6 +28,9 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Push Notification Bell */}
+            <NotificationBell />
+
             <div className="hidden sm:flex items-center gap-2 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-full text-xs font-semibold text-rose-700">
               <ShieldCheck size={16} />
               <span>Admin Privileges Active</span>
