@@ -115,7 +115,7 @@ export interface Order {
   discount: number;
   total: number;
   status: OrderStatus;
-  paymentStatus: 'Pending' | 'Paid' | 'Failed';
+  paymentStatus: 'Pending' | 'Pending Verification' | 'Paid' | 'Failed' | 'Refunded';
   paymentMethod?: 'card' | 'upi' | 'upi-qr' | 'razorpay';
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
