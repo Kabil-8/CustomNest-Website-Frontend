@@ -6,7 +6,7 @@ import { formatDate } from '../../lib/utils';
 import { Skeleton } from '../../components/ui';
 import {
   Sparkles, Send, Loader2, Plus,
-  ChevronDown, ChevronUp, ShoppingBag,
+  ChevronDown, ChevronUp, ShoppingBag, AlertCircle,
 } from 'lucide-react';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -164,6 +164,14 @@ export default function AccountCustomOrders() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Non-cancellation policy notice */}
+          <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900">
+            <AlertCircle size={15} className="text-amber-600 shrink-0" />
+            <span>
+              <strong>Non-Cancellation Policy:</strong> Custom handcrafted orders are made uniquely for you and cannot be cancelled or modified once accepted and paid.
+            </span>
+          </div>
+
           {requests.map((r) => {
             const isOpen     = expanded === r.id;
             const hasReply   = (r.messages ?? []).some((m) => m.sender === 'admin');
@@ -191,6 +199,9 @@ export default function AccountCustomOrders() {
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <Sparkles size={13} className="text-rose-500 shrink-0" />
                       <p className="font-semibold text-sm text-charcoal truncate">{r.productType}</p>
+                      <span className="text-[0.62rem] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0">
+                        Non-Cancellable
+                      </span>
                       {readyToPay && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[0.6rem] font-bold shrink-0">
                           Payment Ready

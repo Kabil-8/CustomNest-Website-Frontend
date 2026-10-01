@@ -5,6 +5,7 @@ import type { CustomOrderMessage, Order } from '../../types';
 import { formatPrice, formatDate, estimateDelivery, getHandcraftingWindow } from '../../lib/utils';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { EmptyState, Skeleton, Badge } from '../../components/ui';
+import { AlertCircle } from 'lucide-react';
 import { statusTone } from './orderStatus';
 
 export default function AccountOrderDetail() {
@@ -50,9 +51,25 @@ export default function AccountOrderDetail() {
             <p className="font-display text-xl">{order.id}</p>
             <p className="text-xs text-muted mt-0.5">Placed on {formatDate(order.createdAt)}</p>
           </div>
-          <Badge tone={statusTone(order.status)}>{order.status}</Badge>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full">
+              Non-Cancellable
+            </span>
+            <Badge tone={statusTone(order.status)}>{order.status}</Badge>
+          </div>
         </div>
         <OrderTimeline status={order.status} />
+
+        {/* Non-cancellation policy notice */}
+        <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 mt-5">
+          <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block">Non-Cancellable Handcrafted Order</span>
+            <span className="text-[0.73rem] text-amber-800/90 leading-relaxed block mt-0.5">
+              Every item is custom handcrafted with care specifically for your order. Once placed, orders cannot be cancelled or modified.
+            </span>
+          </div>
+        </div>
         
         {/* Fulfillment Status Information */}
         {order.status === 'Shipped' ? (

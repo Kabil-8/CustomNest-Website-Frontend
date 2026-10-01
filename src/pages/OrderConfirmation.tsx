@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { orders as ordersApi } from '../lib/api';
 import type { CustomOrderMessage, Order } from '../types';
 import { formatPrice, getHandcraftingWindow } from '../lib/utils';
@@ -95,6 +95,17 @@ export default function OrderConfirmation() {
           <div className="border-t border-line pt-4 flex justify-between font-semibold">
             <span>Total</span>
             <span>{formatPrice(order.total)}</span>
+          </div>
+
+          {/* Non-cancellation policy notice */}
+          <div className="mt-5 p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-left flex items-start gap-2.5">
+            <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900">
+              <span className="font-bold block">Non-Cancellable Order</span>
+              <span className="text-[0.73rem] text-amber-800/90 leading-relaxed block mt-0.5">
+                Your handcrafted pieces are queued for artisan preparation. Because all our items are custom handmade specifically for you, orders cannot be cancelled or modified once placed.
+              </span>
+            </div>
           </div>
         </div>
 

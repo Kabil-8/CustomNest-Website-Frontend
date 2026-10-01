@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: 'Can I cancel an order?',
-    a: 'Orders can be cancelled before they enter the "Processing" stage. Once handmade production has started, cancellations may not be possible — please reach out to us as soon as possible.',
+    a: 'Because all our pieces are personalized and custom handcrafted specifically for you upon order, orders cannot be cancelled, modified, or refunded once placed. Please review your order and customization details carefully before completing payment.',
   },
   {
     q: 'How do I track my order?',

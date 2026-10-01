@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Smartphone, Palette } from 'lucide-react';
+import { Check, CreditCard, Smartphone, Palette, AlertCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { addresses as addressApi, orders as ordersApi } from '../lib/api';
@@ -442,10 +442,22 @@ export default function Checkout() {
                   </label>
                 ))}
               </div>
-              <div className="p-3 bg-ivory rounded-xl border border-line text-xs text-muted mb-6 flex items-center gap-2">
+              <div className="p-3 bg-ivory rounded-xl border border-line text-xs text-muted mb-4 flex items-center gap-2">
                 <span className="text-emerald-600 font-bold">🔒 256-bit SSL Secure:</span>
                 <span>Payments are processed with official Razorpay 256-bit encryption.</span>
               </div>
+
+              {/* Non-cancellation policy notice */}
+              <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200/90 text-amber-900 text-xs mb-6 flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">Non-Cancellable Order Policy</span>
+                  <span className="text-[0.73rem] text-amber-800/90 leading-relaxed block mt-0.5">
+                    All our items are customized & handcrafted specially for each customer. Once you confirm and place this order, it cannot be cancelled or refunded.
+                  </span>
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="btn-secondary">
                   Back
@@ -522,6 +534,10 @@ export default function Checkout() {
                   />
                 </label>
               </div>
+
+              <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2 border border-amber-200 mb-3 text-center">
+                ⚠️ <strong>Non-Cancellable Order:</strong> Handcrafting begins upon payment verification. Orders cannot be cancelled once placed.
+              </p>
 
               <div className="flex gap-3">
                 <button
@@ -605,6 +621,10 @@ export default function Checkout() {
             <div className="border-t border-line pt-2.5 flex justify-between font-semibold text-base">
               <span>Total</span>
               <span>{formatPrice(total)}</span>
+            </div>
+            <div className="mt-3 pt-3 border-t border-line/70 text-[0.72rem] text-muted flex items-start gap-1.5">
+              <span className="font-semibold text-charcoal">Policy:</span>
+              <span>Handcrafted items are strictly non-cancellable once ordered.</span>
             </div>
           </div>
         </div>

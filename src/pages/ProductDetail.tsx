@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Heart, ShoppingBag, Truck, ShieldCheck, RefreshCw, Sparkles, Check, ArrowLeft, Loader2, ChevronLeft, ChevronRight, Layers, Ruler, Send } from 'lucide-react';
+import { Star, Heart, ShoppingBag, Truck, ShieldCheck, RefreshCw, Sparkles, Check, ArrowLeft, Loader2, ChevronLeft, ChevronRight, Layers, Ruler, Send, AlertCircle } from 'lucide-react';
 import { useProduct } from '../hooks/useProduct';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -528,11 +528,22 @@ export default function ProductDetail() {
               </div>
               <div className="p-3 rounded-xl bg-white border border-line">
                 <ShieldCheck size={18} className="mx-auto text-rose-500 mb-1" />
-                <span className="text-[0.7rem] font-medium text-charcoal block">100% Premium Yarn</span>
+                <span className="text-[0.7rem] font-medium text-charcoal block">100% Premium Quality</span>
               </div>
               <div className="p-3 rounded-xl bg-white border border-line">
-                <RefreshCw size={18} className="mx-auto text-rose-500 mb-1" />
-                <span className="text-[0.7rem] font-medium text-charcoal block">Custom Requests</span>
+                <AlertCircle size={18} className="mx-auto text-amber-500 mb-1" />
+                <span className="text-[0.7rem] font-medium text-charcoal block">Non-Cancellable</span>
+              </div>
+            </div>
+
+            {/* Non-cancellation policy alert */}
+            <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs">
+              <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold block">Non-Cancellable Item</span>
+                <span className="text-amber-800/90 text-[0.73rem] leading-relaxed block mt-0.5">
+                  Because every item is custom handcrafted with care specifically for your order, orders cannot be cancelled or modified once placed.
+                </span>
               </div>
             </div>
 

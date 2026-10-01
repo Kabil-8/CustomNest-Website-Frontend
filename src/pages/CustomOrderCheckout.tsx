@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload } from 'lucide-react';
+import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { addresses as addressApi, customOrders as customOrderApi, orders as ordersApi } from '../lib/api';
@@ -298,9 +298,20 @@ export default function CustomOrderCheckout() {
                 ))}
               </div>
 
-              <div className="p-3.5 bg-ivory rounded-2xl border border-line text-xs text-muted mb-6 flex items-center gap-2.5">
+              <div className="p-3.5 bg-ivory rounded-2xl border border-line text-xs text-muted mb-4 flex items-center gap-2.5">
                 <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
                 <span>You will scan the QR code for <strong>Rs.{total.toLocaleString('en-IN')}</strong> and attach your payment screenshot.</span>
+              </div>
+
+              {/* Non-cancellation policy notice */}
+              <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200/90 text-amber-900 text-xs mb-6 flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">Non-Cancellable Order Policy</span>
+                  <span className="text-[0.73rem] text-amber-800/90 leading-relaxed block mt-0.5">
+                    Because this item is custom designed & handmade to your exact specifications, this order cannot be cancelled or refunded once confirmed.
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-3">
@@ -334,6 +345,10 @@ export default function CustomOrderCheckout() {
           <div className="mt-4 pt-4 border-t border-line text-xs text-muted space-y-1">
             {request.colors   && <p>Colors: {request.colors}</p>}
             {request.deadline && <p>Deadline: {request.deadline}</p>}
+          </div>
+          <div className="mt-3 pt-3 border-t border-line/70 text-[0.72rem] text-muted flex items-start gap-1.5">
+            <span className="font-semibold text-charcoal">Policy:</span>
+            <span>Custom handcrafted orders are strictly non-cancellable.</span>
           </div>
         </div>
       </div>
@@ -411,6 +426,10 @@ export default function CustomOrderCheckout() {
               </label>
             </div>
             
+            <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2 border border-amber-200 mb-3 text-center">
+              ⚠️ <strong>Non-Cancellable Order:</strong> Crafting begins upon payment verification. Custom orders cannot be cancelled once placed.
+            </p>
+
             <div className="flex gap-3">
               <button
                 onClick={async () => {

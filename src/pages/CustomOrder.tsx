@@ -870,6 +870,14 @@ export default function CustomOrder() {
                     </div>
                   </div>
 
+                  {/* Non-cancellation policy notice */}
+                  <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[11.5px] text-amber-900 flex items-start gap-2">
+                    <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Non-Cancellation Policy:</strong> Because custom orders are designed, personalized, and handcrafted exclusively for you, custom orders are strictly non-cancellable once accepted and payment is confirmed.
+                    </span>
+                  </div>
+
                   {/* Submit Button */}
                   <MagneticButton strength={0.15} className="w-full">
                     <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-base shadow-lift">

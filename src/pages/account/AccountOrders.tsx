@@ -9,7 +9,7 @@ import { Badge, EmptyState, Skeleton } from '../../components/ui';
 import { OrderTimeline } from '../../components/OrderTimeline';
 import { useToast } from '../../context/ToastContext';
 import { statusTone } from './orderStatus';
-import { ChevronDown, ChevronUp, Star, Send, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Star, Send, ExternalLink, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 // ── Star Rating Widget ────────────────────────────────────────────────────────
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -148,6 +148,14 @@ export default function AccountOrders() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Non-cancellation policy notice */}
+      <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900">
+        <AlertCircle size={15} className="text-amber-600 shrink-0" />
+        <span>
+          <strong>Non-Cancellation Policy:</strong> All orders are custom handcrafted specifically for you and cannot be cancelled or modified once placed.
+        </span>
+      </div>
+
       {orders.map((o) => {
         const isOpen = expanded === o.id;
         const isDelivered = o.status === 'Delivered';
@@ -177,12 +185,17 @@ export default function AccountOrders() {
                   <p className="text-xs text-muted mt-0.5">
                     {formatDate(o.createdAt)} &middot; {o.items.length} item{o.items.length !== 1 ? 's' : ''}
                   </p>
-                  {isDelivered && (
-                    <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-1">
-                      <Star size={9} className="fill-amber-400 text-amber-400" />
-                      Rate this order
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="inline-flex items-center text-[0.65rem] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                      Non-Cancellable
                     </span>
-                  )}
+                    {isDelivered && (
+                      <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        <Star size={9} className="fill-amber-400 text-amber-400" />
+                        Rate this order
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -321,6 +334,12 @@ export default function AccountOrders() {
                         <p>{o.address.line1}, {o.address.city}, {o.address.state} {o.address.postalCode}</p>
                       </div>
                     )}
+
+                    {/* Non-cancellation reminder */}
+                    <div className="flex items-center gap-2 text-[0.7rem] text-muted bg-ivory rounded-xl p-2.5 border border-line">
+                      <span className="font-semibold text-charcoal">Order Policy:</span>
+                      <span>Handcrafted & made to order · Strictly non-cancellable once placed.</span>
+                    </div>
 
                     {/* View full detail link */}
                     <Link

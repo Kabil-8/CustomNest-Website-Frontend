@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, Plus, Trash2, ArrowRight, Palette } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowRight, Palette, AlertCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { listActiveColors, isProductAddon, type ApiColor } from '../lib/productApi';
 import { formatPrice } from '../lib/utils';
@@ -212,7 +212,16 @@ export default function Cart() {
                 <span>{formatPrice(total)}</span>
               </div>
             </div>
-            <Link to="/checkout" className="btn-primary w-full mt-6">
+
+            {/* Non-cancellation policy notice */}
+            <div className="mt-4 p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[0.73rem] text-amber-900 flex items-start gap-2">
+              <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Non-Cancellation Policy:</strong> All items are custom handcrafted upon order and cannot be cancelled or modified once placed.
+              </span>
+            </div>
+
+            <Link to="/checkout" className="btn-primary w-full mt-4">
               Proceed to Checkout <ArrowRight size={16} />
             </Link>
             <Link to="/shop" className="btn-tertiary w-full justify-center mt-4 text-sm">
