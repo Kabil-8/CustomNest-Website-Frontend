@@ -4,7 +4,22 @@ import type { CustomOrderRequest } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { Skeleton } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
-import { Send, Loader2, ChevronDown, ChevronUp, IndianRupee, CheckCircle2, Save, Trash2, Download } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  IndianRupee,
+  CheckCircle2,
+  Save,
+  Trash2,
+  Download,
+  Upload,
+  Plus,
+  AlertCircle,
+  ExternalLink,
+  ImageOff,
+} from 'lucide-react';
 
 const STATUSES: CustomOrderRequest['status'][] = [
   'New', 'In Review', 'Quoted', 'Accepted', 'Declined',
@@ -248,10 +263,24 @@ function getImageUrl(url?: string): string {
   return url;
 }
 
-async function downloadImage(url: string, filename: string) {
+async function downloadImage(
+  url: string,
+  filename: string,
+  onNotify?: (msg: string, type: 'success' | 'error') => void
+) {
   try {
+    if (url.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      onNotify?.('Image downloaded ✓', 'success');
+      return;
+    }
     const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error('Failed to fetch image');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const blobUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -260,8 +289,10 @@ async function downloadImage(url: string, filename: string) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
-  } catch {
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+    onNotify?.('Image downloaded ✓', 'success');
+  } catch (err) {
+    console.warn('Direct blob download failed, falling back:', err);
     // Fallback: trigger download link directly
     const link = document.createElement('a');
     link.href = url;
@@ -271,7 +302,16 @@ async function downloadImage(url: string, filename: string) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    onNotify?.('Opened image for download in new tab', 'success');
   }
+}
+
+interface PreviewModalState {
+  url: string;
+  title: string;
+  filename: string;
+  requestId: string;
+  slotIndex: number | 'sample';
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -281,7 +321,10 @@ export default function AdminCustomOrders() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingImg, setDownloadingImg] = useState<string | null>(null);
-  const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string; filename: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [previewModalImg, setPreviewModalImg] = useState<PreviewModalState | null>(null);
+  const [modalImgFailed, setModalImgFailed] = useState(false);
 
   useEffect(() => { customOrderApi.listAll().then(setRequests); }, []);
 
@@ -293,18 +336,67 @@ export default function AdminCustomOrders() {
 
   async function handleDelete(e: React.MouseEvent, id: string, name: string) {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to permanently delete custom order request from "${name}"?`)) {
+    if (!window.confirm(`Are you sure you want to permanently delete custom order request from "${name}" and all attached files?`)) {
       return;
     }
     setDeletingId(id);
     try {
       await customOrderApi.remove(id);
       setRequests((prev) => (prev ?? []).filter((r) => r.id !== id));
-      show(`Deleted custom order from "${name}" ✓`, 'success');
+      show(`Deleted custom order from "${name}" and freed storage ✓`, 'success');
     } catch {
       show('Failed to delete custom order request', 'error');
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleDeleteImage(requestId: string, slot: number | 'sample') {
+    if (!window.confirm('Delete this image permanently from database and server storage to free up space?')) {
+      return;
+    }
+    setActionLoading(`del-${requestId}-${slot}`);
+    try {
+      const updated = await customOrderApi.deleteImage(requestId, slot);
+      handleUpdated(updated);
+      if (previewModalImg?.requestId === requestId && previewModalImg?.slotIndex === slot) {
+        setPreviewModalImg(null);
+      }
+      show('Image deleted permanently and storage freed ✓', 'success');
+    } catch {
+      show('Failed to delete image', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleUploadImage(requestId: string, slot: number | 'sample' | undefined, file: File) {
+    if (file.size > 15 * 1024 * 1024) {
+      show('Please select an image smaller than 15MB', 'error');
+      return;
+    }
+    setActionLoading(`up-${requestId}-${slot ?? 'new'}`);
+    try {
+      const updated = await customOrderApi.uploadImage(requestId, file, slot);
+      handleUpdated(updated);
+      show('Image saved to database permanently ✓', 'success');
+      // If modal was open, refresh modal view
+      if (previewModalImg?.requestId === requestId && previewModalImg?.slotIndex === slot) {
+        const allPhotos = (updated.referenceImages && updated.referenceImages.length > 0)
+          ? updated.referenceImages
+          : (updated.referenceImage ? [updated.referenceImage] : []);
+        const newPath = slot === 'sample' ? updated.sampleImage : (typeof slot === 'number' ? allPhotos[slot] : allPhotos[allPhotos.length - 1]);
+        if (newPath) {
+          const freshUrl = getImageUrl(newPath);
+          setFailedImages((prev) => ({ ...prev, [freshUrl]: false }));
+          setModalImgFailed(false);
+          setPreviewModalImg((prev) => prev ? { ...prev, url: freshUrl } : null);
+        }
+      }
+    } catch {
+      show('Failed to upload and save image', 'error');
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -437,14 +529,12 @@ export default function AdminCustomOrders() {
                       </p>
                     </div>
 
-                    {/* Customer Images — shown only when present */}
+                    {/* Customer Images — view, download, replace, delete */}
                     {(() => {
                       const allCustomerPhotos = (r.referenceImages && r.referenceImages.length > 0)
                         ? r.referenceImages
                         : (r.referenceImage ? [r.referenceImage] : []);
                       const hasAnyImages = allCustomerPhotos.length > 0 || Boolean(r.sampleImage);
-
-                      if (!hasAnyImages) return null;
 
                       return (
                         <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4 space-y-3">
@@ -456,141 +546,339 @@ export default function AdminCustomOrders() {
                               </span>
                             </div>
 
-                            {/* Download All button if multiple images exist */}
-                            {(allCustomerPhotos.length + (r.sampleImage ? 1 : 0)) > 1 && (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-                                  for (let i = 0; i < allCustomerPhotos.length; i++) {
-                                    await downloadImage(getImageUrl(allCustomerPhotos[i]), `${safeName}_customer_photo_${i + 1}.jpg`);
-                                  }
-                                  if (r.sampleImage) {
-                                    await downloadImage(getImageUrl(r.sampleImage), `${safeName}_sample_reference.jpg`);
-                                  }
-                                  show('Started downloading all images ✓', 'success');
-                                }}
-                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1 rounded-xl transition shadow-xs cursor-pointer"
-                              >
-                                <Download size={11} />
-                                Download All ({allCustomerPhotos.length + (r.sampleImage ? 1 : 0)})
-                              </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {/* Add photo button if under 3 photos */}
+                              {allCustomerPhotos.length < 3 && (
+                                <label className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-white hover:bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-xl transition shadow-2xs cursor-pointer">
+                                  {actionLoading === `up-${r.id}-new` ? (
+                                    <Loader2 size={11} className="animate-spin text-rose-500" />
+                                  ) : (
+                                    <Plus size={12} className="text-rose-600" />
+                                  )}
+                                  <span>+ Add Photo</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*,.heic,.heif"
+                                    className="hidden"
+                                    disabled={actionLoading !== null}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleUploadImage(r.id, undefined, file);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                              )}
+
+                              {/* Download All button if multiple images exist */}
+                              {(allCustomerPhotos.length + (r.sampleImage ? 1 : 0)) > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                                    for (let i = 0; i < allCustomerPhotos.length; i++) {
+                                      await downloadImage(getImageUrl(allCustomerPhotos[i]), `${safeName}_customer_photo_${i + 1}.jpg`);
+                                    }
+                                    if (r.sampleImage) {
+                                      await downloadImage(getImageUrl(r.sampleImage), `${safeName}_sample_reference.jpg`);
+                                    }
+                                    show('Started downloading all images ✓', 'success');
+                                  }}
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1 rounded-xl transition shadow-xs cursor-pointer"
+                                >
+                                  <Download size={11} />
+                                  Download All ({allCustomerPhotos.length + (r.sampleImage ? 1 : 0)})
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {/* Customer Photos (Up to 3) */}
-                            {allCustomerPhotos.map((photoPath, idx) => {
-                              const photoUrl = getImageUrl(photoPath);
-                              const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-                              const filename = `${safeName}_customer_photo_${idx + 1}.jpg`;
-                              const title = `📸 Photo ${idx + 1} (${allCustomerPhotos.length > 1 ? `Subject Photo ${idx + 1}` : 'Customer Photo'})`;
-                              const isDl = downloadingImg === `photo-${r.id}-${idx}`;
+                          {!hasAnyImages ? (
+                            <div className="text-center py-6 bg-white/70 rounded-xl border border-dashed border-rose-200">
+                              <p className="text-xs text-muted mb-2">No reference photos attached to this order.</p>
+                              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded-xl cursor-pointer shadow-xs transition">
+                                <Plus size={13} />
+                                <span>Upload Photo for Customer</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.heic,.heif"
+                                  className="hidden"
+                                  disabled={actionLoading !== null}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadImage(r.id, 0, file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {/* Customer Photos (Up to 3) */}
+                              {allCustomerPhotos.map((photoPath, idx) => {
+                                const photoUrl = getImageUrl(photoPath);
+                                const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                                const filename = `${safeName}_customer_photo_${idx + 1}.jpg`;
+                                const title = `📸 Photo ${idx + 1} (${allCustomerPhotos.length > 1 ? `Subject Photo ${idx + 1}` : 'Customer Photo'})`;
+                                const isDl = downloadingImg === `photo-${r.id}-${idx}`;
+                                const isAction = actionLoading === `del-${r.id}-${idx}` || actionLoading === `up-${r.id}-${idx}`;
+                                const hasFailed = failedImages[photoUrl];
 
-                              return (
-                                <div key={idx} className="bg-white/80 p-2.5 rounded-2xl border border-rose-200/60 flex flex-col justify-between space-y-2">
-                                  <div>
-                                    <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">{title}</p>
-                                    <p className="text-[10px] text-muted leading-tight mb-2">Subject to cast/recreate</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewModalImg({ url: photoUrl, title, filename })}
-                                      className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer"
-                                      title="Click to zoom & inspect"
-                                    >
-                                      <img
-                                        src={photoUrl}
-                                        alt={title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                                      />
-                                      <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
-                                        Zoom / View ↗
+                                return (
+                                  <div key={idx} className="bg-white/90 p-2.5 rounded-2xl border border-rose-200/70 flex flex-col justify-between space-y-2 shadow-2xs">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider truncate">{title}</p>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteImage(r.id, idx)}
+                                          disabled={isAction}
+                                          className="text-gray-400 hover:text-red-600 transition p-0.5 rounded cursor-pointer"
+                                          title="Delete this image to free storage space"
+                                        >
+                                          {actionLoading === `del-${r.id}-${idx}` ? (
+                                            <Loader2 size={12} className="animate-spin text-red-500" />
+                                          ) : (
+                                            <Trash2 size={12} />
+                                          )}
+                                        </button>
                                       </div>
-                                    </button>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/50">
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewModalImg({ url: photoUrl, title, filename })}
-                                      className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
-                                    >
-                                      View ↗
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        setDownloadingImg(`photo-${r.id}-${idx}`);
-                                        await downloadImage(photoUrl, filename);
-                                        setDownloadingImg(null);
-                                      }}
-                                      disabled={isDl}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
-                                      title="Download this photo"
-                                    >
-                                      {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
-                                      Download
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                      <p className="text-[10px] text-muted leading-tight mb-2">Subject to cast/recreate</p>
 
-                            {/* Sample / Inspiration Image */}
-                            {r.sampleImage && (() => {
-                              const sampleUrl = getImageUrl(r.sampleImage);
-                              const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-                              const filename = `${safeName}_sample_reference.jpg`;
-                              const title = '🖼️ Sample / Inspiration Design';
-                              const isDl = downloadingImg === `sample-${r.id}`;
+                                      {hasFailed ? (
+                                        <div className="w-full aspect-square rounded-xl bg-amber-50 border border-amber-200 p-3 flex flex-col items-center justify-center text-center">
+                                          <ImageOff size={22} className="text-amber-500 mb-1" />
+                                          <p className="text-[10px] font-bold text-amber-800">Legacy File Erased</p>
+                                          <p className="text-[9px] text-amber-700/80 leading-tight mt-0.5 mb-2">
+                                            Wiped by Render restart before MongoDB backup
+                                          </p>
+                                          <label className="text-[10px] font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 px-2 py-1 rounded-lg cursor-pointer transition shadow-2xs inline-flex items-center gap-1">
+                                            <Upload size={10} /> Replace
+                                            <input
+                                              type="file"
+                                              accept="image/*,.heic,.heif"
+                                              className="hidden"
+                                              disabled={isAction}
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadImage(r.id, idx, file);
+                                                e.target.value = '';
+                                              }}
+                                            />
+                                          </label>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setModalImgFailed(false);
+                                            setPreviewModalImg({ url: photoUrl, title, filename, requestId: r.id, slotIndex: idx });
+                                          }}
+                                          className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer bg-sand/30"
+                                          title="Click to zoom & inspect"
+                                        >
+                                          <img
+                                            src={photoUrl}
+                                            alt={title}
+                                            onError={() => setFailedImages((prev) => ({ ...prev, [photoUrl]: true }))}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                            Zoom / View ↗
+                                          </div>
+                                        </button>
+                                      )}
+                                    </div>
 
-                              return (
-                                <div className="bg-white/80 p-2.5 rounded-2xl border border-rose-200/60 flex flex-col justify-between space-y-2">
-                                  <div>
-                                    <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider">{title}</p>
-                                    <p className="text-[10px] text-muted leading-tight mb-2">Desired style / flowers / layout</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewModalImg({ url: sampleUrl, title, filename })}
-                                      className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer"
-                                      title="Click to zoom & inspect"
-                                    >
-                                      <img
-                                        src={sampleUrl}
-                                        alt={title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                                      />
-                                      <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
-                                        Zoom / View ↗
+                                    {/* Action Buttons: View, Download, Replace, Delete */}
+                                    <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/60">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setModalImgFailed(Boolean(hasFailed));
+                                          setPreviewModalImg({ url: photoUrl, title, filename, requestId: r.id, slotIndex: idx });
+                                        }}
+                                        className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
+                                      >
+                                        View ↗
+                                      </button>
+
+                                      <div className="flex items-center gap-1">
+                                        <label
+                                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 hover:bg-rose-100/70 text-charcoal hover:text-rose-600 border border-line transition cursor-pointer"
+                                          title="Replace this photo"
+                                        >
+                                          {actionLoading === `up-${r.id}-${idx}` ? (
+                                            <Loader2 size={11} className="animate-spin text-rose-500" />
+                                          ) : (
+                                            <Upload size={11} />
+                                          )}
+                                          <input
+                                            type="file"
+                                            accept="image/*,.heic,.heif"
+                                            className="hidden"
+                                            disabled={isAction}
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) handleUploadImage(r.id, idx, file);
+                                              e.target.value = '';
+                                            }}
+                                          />
+                                        </label>
+
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            setDownloadingImg(`photo-${r.id}-${idx}`);
+                                            await downloadImage(photoUrl, filename, show);
+                                            setDownloadingImg(null);
+                                          }}
+                                          disabled={isDl || hasFailed}
+                                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer disabled:opacity-40"
+                                          title="Download this photo"
+                                        >
+                                          {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                          Download
+                                        </button>
                                       </div>
-                                    </button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/50">
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewModalImg({ url: sampleUrl, title, filename })}
-                                      className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
-                                    >
-                                      View ↗
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        setDownloadingImg(`sample-${r.id}`);
-                                        await downloadImage(sampleUrl, filename);
-                                        setDownloadingImg(null);
-                                      }}
-                                      disabled={isDl}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer"
-                                      title="Download sample reference"
-                                    >
-                                      {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
-                                      Download
-                                    </button>
+                                );
+                              })}
+
+                              {/* Sample / Inspiration Image */}
+                              {r.sampleImage && (() => {
+                                const sampleUrl = getImageUrl(r.sampleImage);
+                                const safeName = r.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                                const filename = `${safeName}_sample_reference.jpg`;
+                                const title = '🖼️ Sample / Inspiration Design';
+                                const isDl = downloadingImg === `sample-${r.id}`;
+                                const isAction = actionLoading === `del-${r.id}-sample` || actionLoading === `up-${r.id}-sample`;
+                                const hasFailed = failedImages[sampleUrl];
+
+                                return (
+                                  <div className="bg-white/90 p-2.5 rounded-2xl border border-rose-200/70 flex flex-col justify-between space-y-2 shadow-2xs">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <p className="text-[11px] font-bold text-charcoal uppercase tracking-wider truncate">{title}</p>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteImage(r.id, 'sample')}
+                                          disabled={isAction}
+                                          className="text-gray-400 hover:text-red-600 transition p-0.5 rounded cursor-pointer"
+                                          title="Delete sample reference to free storage"
+                                        >
+                                          {actionLoading === `del-${r.id}-sample` ? (
+                                            <Loader2 size={12} className="animate-spin text-red-500" />
+                                          ) : (
+                                            <Trash2 size={12} />
+                                          )}
+                                        </button>
+                                      </div>
+                                      <p className="text-[10px] text-muted leading-tight mb-2">Desired style / flowers / layout</p>
+
+                                      {hasFailed ? (
+                                        <div className="w-full aspect-square rounded-xl bg-amber-50 border border-amber-200 p-3 flex flex-col items-center justify-center text-center">
+                                          <ImageOff size={22} className="text-amber-500 mb-1" />
+                                          <p className="text-[10px] font-bold text-amber-800">Legacy Sample Erased</p>
+                                          <p className="text-[9px] text-amber-700/80 leading-tight mt-0.5 mb-2">
+                                            Wiped by Render restart before MongoDB backup
+                                          </p>
+                                          <label className="text-[10px] font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 px-2 py-1 rounded-lg cursor-pointer transition shadow-2xs inline-flex items-center gap-1">
+                                            <Upload size={10} /> Replace
+                                            <input
+                                              type="file"
+                                              accept="image/*,.heic,.heif"
+                                              className="hidden"
+                                              disabled={isAction}
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadImage(r.id, 'sample', file);
+                                                e.target.value = '';
+                                              }}
+                                            />
+                                          </label>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setModalImgFailed(false);
+                                            setPreviewModalImg({ url: sampleUrl, title, filename, requestId: r.id, slotIndex: 'sample' });
+                                          }}
+                                          className="relative group block w-full aspect-square rounded-xl overflow-hidden border border-rose-200 shadow-sm text-left cursor-pointer bg-sand/30"
+                                          title="Click to zoom & inspect"
+                                        >
+                                          <img
+                                            src={sampleUrl}
+                                            alt={title}
+                                            onError={() => setFailedImages((prev) => ({ ...prev, [sampleUrl]: true }))}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-charcoal/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white text-[11px] font-semibold transition">
+                                            Zoom / View ↗
+                                          </div>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Action Buttons: View, Download, Replace, Delete */}
+                                    <div className="flex items-center justify-between gap-1 pt-2 border-t border-line/60">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setModalImgFailed(Boolean(hasFailed));
+                                          setPreviewModalImg({ url: sampleUrl, title, filename, requestId: r.id, slotIndex: 'sample' });
+                                        }}
+                                        className="text-[11px] text-rose-600 font-bold hover:underline cursor-pointer"
+                                      >
+                                        View ↗
+                                      </button>
+
+                                      <div className="flex items-center gap-1">
+                                        <label
+                                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 hover:bg-rose-100/70 text-charcoal hover:text-rose-600 border border-line transition cursor-pointer"
+                                          title="Replace sample image"
+                                        >
+                                          {actionLoading === `up-${r.id}-sample` ? (
+                                            <Loader2 size={11} className="animate-spin text-rose-500" />
+                                          ) : (
+                                            <Upload size={11} />
+                                          )}
+                                          <input
+                                            type="file"
+                                            accept="image/*,.heic,.heif"
+                                            className="hidden"
+                                            disabled={isAction}
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) handleUploadImage(r.id, 'sample', file);
+                                              e.target.value = '';
+                                            }}
+                                          />
+                                        </label>
+
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            setDownloadingImg(`sample-${r.id}`);
+                                            await downloadImage(sampleUrl, filename, show);
+                                            setDownloadingImg(null);
+                                          }}
+                                          disabled={isDl || hasFailed}
+                                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-charcoal bg-white hover:bg-rose-100/70 active:scale-95 px-2 py-1 rounded-lg border border-line transition shadow-xs cursor-pointer disabled:opacity-40"
+                                          title="Download sample reference"
+                                        >
+                                          {isDl ? <Loader2 size={11} className="animate-spin text-rose-500" /> : <Download size={11} className="text-rose-600" />}
+                                          Download
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
+                                );
+                              })()}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -604,10 +892,10 @@ export default function AdminCustomOrders() {
         </div>
       )}
 
-      {/* Image Preview Lightbox Modal */}
+      {/* Image Preview Lightbox Modal with Full View, Replace, Delete, & Download */}
       {previewModalImg && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setPreviewModalImg(null)}
         >
           <div
@@ -615,38 +903,118 @@ export default function AdminCustomOrders() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-line mb-3">
-              <h3 className="font-semibold text-sm text-charcoal">{previewModalImg.title}</h3>
+              <div className="min-w-0 pr-2">
+                <h3 className="font-semibold text-sm text-charcoal truncate">{previewModalImg.title}</h3>
+                <p className="text-[11px] text-muted truncate">{previewModalImg.filename}</p>
+              </div>
               <button
                 onClick={() => setPreviewModalImg(null)}
-                className="w-8 h-8 rounded-full bg-sand/60 hover:bg-rose-100 flex items-center justify-center text-charcoal font-bold transition cursor-pointer"
+                className="w-8 h-8 rounded-full bg-sand/60 hover:bg-rose-100 flex items-center justify-center text-charcoal font-bold transition cursor-pointer shrink-0"
               >
                 ✕
               </button>
             </div>
-            <div className="max-h-[68vh] flex items-center justify-center overflow-auto rounded-2xl bg-neutral-900/5 p-2 border border-line">
-              <img
-                src={previewModalImg.url}
-                alt={previewModalImg.title}
-                className="max-h-[62vh] w-auto max-w-full object-contain rounded-xl shadow-sm"
-              />
+
+            {/* Modal Image Box */}
+            <div className="max-h-[66vh] min-h-[220px] flex items-center justify-center overflow-auto rounded-2xl bg-neutral-900/5 p-3 border border-line">
+              {modalImgFailed ? (
+                <div className="flex flex-col items-center justify-center text-center p-6 max-w-md">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3">
+                    <AlertCircle size={26} />
+                  </div>
+                  <h4 className="font-bold text-sm text-charcoal mb-1">Image Expired on Server (Legacy File)</h4>
+                  <p className="text-xs text-muted leading-relaxed mb-4">
+                    This file was saved on Render's temporary disk before permanent MongoDB Atlas persistence was enabled, and was removed during a server restart.
+                  </p>
+                  <p className="text-xs font-semibold text-charcoal mb-4">
+                    You can replace this photo now or delete the slot to clean up.
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    <label className="btn-primary py-2 px-4 text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-sm">
+                      <Upload size={13} />
+                      <span>Upload / Replace Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*,.heic,.heif"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(previewModalImg.requestId, previewModalImg.slotIndex, file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImage(previewModalImg.requestId, previewModalImg.slotIndex)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-xl transition cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete File Slot</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={previewModalImg.url}
+                  alt={previewModalImg.title}
+                  onError={() => {
+                    setModalImgFailed(true);
+                    setFailedImages((prev) => ({ ...prev, [previewModalImg.url]: true }));
+                  }}
+                  className="max-h-[60vh] w-auto max-w-full object-contain rounded-xl shadow-sm"
+                />
+              )}
             </div>
-            <div className="flex items-center justify-between pt-3 border-t border-line mt-3">
-              <a
-                href={previewModalImg.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-rose-600 font-bold hover:underline inline-flex items-center gap-1"
-              >
-                Open in new tab ↗
-              </a>
-              <button
-                type="button"
-                onClick={() => downloadImage(previewModalImg.url, previewModalImg.filename)}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
-              >
-                <Download size={13} />
-                Download Image
-              </button>
+
+            {/* Modal Footer Toolbar */}
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-3 border-t border-line mt-3">
+              <div className="flex items-center gap-2">
+                {!modalImgFailed && (
+                  <a
+                    href={previewModalImg.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-rose-600 font-bold hover:underline inline-flex items-center gap-1"
+                  >
+                    Open in new tab <ExternalLink size={12} />
+                  </a>
+                )}
+                <label className="text-xs font-bold text-charcoal bg-sand/60 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1">
+                  <Upload size={12} className="text-rose-600" />
+                  <span>Replace Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*,.heic,.heif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadImage(previewModalImg.requestId, previewModalImg.slotIndex, file);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteImage(previewModalImg.requestId, previewModalImg.slotIndex)}
+                  className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1"
+                  title="Delete this image to free database and server storage"
+                >
+                  <Trash2 size={12} />
+                  <span>Delete File</span>
+                </button>
+              </div>
+
+              {!modalImgFailed && (
+                <button
+                  type="button"
+                  onClick={() => downloadImage(previewModalImg.url, previewModalImg.filename, show)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  <Download size={13} />
+                  Download Image
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -27,7 +27,7 @@ function getToken(): string | null {
 function setToken(t: string) { localStorage.setItem('tcn_token', t); }
 function clearToken()        { localStorage.removeItem('tcn_token'); }
 
-async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
+export async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -259,6 +259,10 @@ export const orders = {
   async remove(orderId: string): Promise<void> {
     await req(`/orders/${orderId}`, { method: 'DELETE' });
   },
+  async deletePaymentScreenshot(orderId: string): Promise<Order> {
+    const data = await req<{ order: Order }>(`/orders/${orderId}/payment-screenshot`, { method: 'DELETE' });
+    return data.order;
+  },
 };
 
 // ── Custom Orders ─────────────────────────────────────────────────────────────
@@ -354,6 +358,30 @@ export const customOrders = {
   },
   async remove(id: string): Promise<void> {
     await req(`/custom-orders/${id}`, { method: 'DELETE' });
+  },
+  async deleteImage(id: string, index: number | 'sample'): Promise<CustomOrderRequest> {
+    const data = await req<{ request: CustomOrderRequest }>(`/custom-orders/${id}/images/${index}`, {
+      method: 'DELETE',
+    });
+    return data.request;
+  },
+  async uploadImage(id: string, file: File, slotIndex?: number | 'sample'): Promise<CustomOrderRequest> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    if (slotIndex !== undefined) {
+      formData.append('slotIndex', String(slotIndex));
+    }
+
+    const res = await fetch(`${BASE}/custom-orders/${id}/images`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(body.message ?? `API error ${res.status}`, res.status);
+    return body.request;
   },
 };
 

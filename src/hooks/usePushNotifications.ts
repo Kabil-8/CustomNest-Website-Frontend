@@ -68,7 +68,7 @@ export function usePushNotifications(options: PushNotificationOptions = {}) {
       // Subscribe to push notifications
       const newSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource,
       });
 
       console.log('[push] New subscription created');
@@ -76,7 +76,7 @@ export function usePushNotifications(options: PushNotificationOptions = {}) {
       // Send subscription to backend
       await req('/push/subscribe', {
         method: 'POST',
-        body: { subscription: newSubscription.toJSON() },
+        body: JSON.stringify({ subscription: newSubscription.toJSON() }),
       });
 
       setSubscription(newSubscription);
