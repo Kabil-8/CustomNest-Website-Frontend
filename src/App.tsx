@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGateProvider } from './context/AuthGateContext';
@@ -24,28 +24,38 @@ import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import NotFound from './pages/NotFound';
 
-import AccountLayout from './pages/account/AccountLayout';
-import AccountOverview from './pages/account/AccountOverview';
-import AccountOrders from './pages/account/AccountOrders';
-import AccountOrderDetail from './pages/account/AccountOrderDetail';
-import AccountWishlist from './pages/account/AccountWishlist';
-import AccountAddresses from './pages/account/AccountAddresses';
-import AccountProfile from './pages/account/AccountProfile';
-import AccountCustomOrders from './pages/account/AccountCustomOrders';
+// Lazy loaded Account pages
+const AccountLayout = lazy(() => import('./pages/account/AccountLayout'));
+const AccountOverview = lazy(() => import('./pages/account/AccountOverview'));
+const AccountOrders = lazy(() => import('./pages/account/AccountOrders'));
+const AccountOrderDetail = lazy(() => import('./pages/account/AccountOrderDetail'));
+const AccountWishlist = lazy(() => import('./pages/account/AccountWishlist'));
+const AccountAddresses = lazy(() => import('./pages/account/AccountAddresses'));
+const AccountProfile = lazy(() => import('./pages/account/AccountProfile'));
+const AccountCustomOrders = lazy(() => import('./pages/account/AccountCustomOrders'));
 
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminOverview from './pages/admin/AdminOverview';
-import AdminProducts from './pages/admin/AdminProducts';
-import AdminCategories from './pages/admin/AdminCategories';
-import AdminOrders from './pages/admin/AdminOrders';
-import AdminOrderDetail from './pages/admin/AdminOrderDetail';
-import AdminCustomers from './pages/admin/AdminCustomers';
-import AdminCustomOrders from './pages/admin/AdminCustomOrders';
-import AdminExpenses from './pages/admin/AdminExpenses';
-import AdminColors from './pages/admin/AdminColors';
-import AdminReviews from './pages/admin/AdminReviews';
-import AdminMessages from './pages/admin/AdminMessages';
+// Lazy loaded Admin pages
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
+const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
+const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail'));
+const AdminCustomers = lazy(() => import('./pages/admin/AdminCustomers'));
+const AdminCustomOrders = lazy(() => import('./pages/admin/AdminCustomOrders'));
+const AdminExpenses = lazy(() => import('./pages/admin/AdminExpenses'));
+const AdminColors = lazy(() => import('./pages/admin/AdminColors'));
+const AdminReviews = lazy(() => import('./pages/admin/AdminReviews'));
+const AdminMessages = lazy(() => import('./pages/admin/AdminMessages'));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="w-8 h-8 rounded-full border-2 border-rose-200 border-t-rose-500 animate-spin" />
+    </div>
+  );
+}
 
 function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -65,67 +75,69 @@ export default function App() {
   return (
     <BrowserRouter>
       <Providers>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/custom-order" element={<CustomOrder />} />
-            <Route path="/custom-order-checkout/:id" element={
-              <RequireCustomer><CustomOrderCheckout /></RequireCustomer>
-            } />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/faq" element={<FAQ />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/custom-order" element={<CustomOrder />} />
+              <Route path="/custom-order-checkout/:id" element={
+                <RequireCustomer><CustomOrderCheckout /></RequireCustomer>
+              } />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/faq" element={<FAQ />} />
 
-            <Route
-              path="/account"
-              element={
-                <RequireCustomer>
-                  <AccountLayout />
-                </RequireCustomer>
-              }
-            >
-              <Route index element={<AccountOverview />} />
-              <Route path="orders" element={<AccountOrders />} />
-              <Route path="orders/:orderId" element={<AccountOrderDetail />} />
-              <Route path="wishlist" element={<AccountWishlist />} />
-              <Route path="addresses" element={<AccountAddresses />} />
-              <Route path="profile" element={<AccountProfile />} />
-              <Route path="custom-orders" element={<AccountCustomOrders />} />
+              <Route
+                path="/account"
+                element={
+                  <RequireCustomer>
+                    <AccountLayout />
+                  </RequireCustomer>
+                }
+              >
+                <Route index element={<AccountOverview />} />
+                <Route path="orders" element={<AccountOrders />} />
+                <Route path="orders/:orderId" element={<AccountOrderDetail />} />
+                <Route path="wishlist" element={<AccountWishlist />} />
+                <Route path="addresses" element={<AccountAddresses />} />
+                <Route path="profile" element={<AccountProfile />} />
+                <Route path="custom-orders" element={<AccountCustomOrders />} />
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
             </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Route>
-
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route
-            path="/admin"
-            element={
-              <RequireAdmin>
-                <AdminLayout />
-              </RequireAdmin>
-            }
-          >
-            <Route index element={<AdminOverview />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="categories" element={<AdminCategories />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="orders/:orderId" element={<AdminOrderDetail />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="custom-orders" element={<AdminCustomOrders />} />
-            <Route path="expenses" element={<AdminExpenses />} />
-            <Route path="colors" element={<AdminColors />} />
-            <Route path="reviews" element={<AdminReviews />} />
-            <Route path="messages" element={<AdminMessages />} />
-          </Route>
-        </Routes>
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireAdmin>
+                  <AdminLayout />
+                </RequireAdmin>
+              }
+            >
+              <Route index element={<AdminOverview />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="categories" element={<AdminCategories />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="orders/:orderId" element={<AdminOrderDetail />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="custom-orders" element={<AdminCustomOrders />} />
+              <Route path="expenses" element={<AdminExpenses />} />
+              <Route path="colors" element={<AdminColors />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="messages" element={<AdminMessages />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </Providers>
     </BrowserRouter>
   );

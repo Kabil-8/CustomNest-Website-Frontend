@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { productApi, normalizeProduct } from '../lib/productApi';
-import { orders as ordersApi, customOrders as customOrdersApi, admin as adminApi } from '../lib/api';
+import { orders as ordersApi, admin as adminApi } from '../lib/api';
 import type { Product } from '../types';
 import { classNames } from '../lib/utils';
 
@@ -50,20 +50,15 @@ export function Navbar() {
           const total = (counts.orders || 0) + (counts.customOrders || 0) + (counts.messages || 0);
           setUserBadgeCount(total);
         } else {
-          const [myOrders, myCustom] = await Promise.all([
-            ordersApi.listMine().catch(() => []),
-            customOrdersApi.listMy().catch(() => []),
-          ]);
-          const activeOrders = myOrders.filter((o: any) => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
-          const activeCustom = myCustom.filter((r: any) => r.status === 'Accepted' || (r.messages || []).some((m: any) => m.sender === 'admin')).length;
-          setUserBadgeCount(activeOrders + activeCustom);
+          const count = await ordersApi.getBadgeCount();
+          setUserBadgeCount(count);
         }
       } catch {
         // ignore
       }
     };
     fetchBadges();
-    const interval = setInterval(fetchBadges, 25000);
+    const interval = setInterval(fetchBadges, 60000);
     return () => clearInterval(interval);
   }, [user]);
 

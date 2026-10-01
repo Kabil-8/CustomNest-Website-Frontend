@@ -231,6 +231,14 @@ export const orders = {
     const data = await req<{ orders: Order[] }>('/orders/my');
     return data.orders ?? [];
   },
+  async getBadgeCount(): Promise<number> {
+    try {
+      const data = await req<{ count: number }>('/orders/badge-count');
+      return data.count ?? 0;
+    } catch {
+      return 0;
+    }
+  },
   async listAll(): Promise<Order[]> {
     const data = await req<{ orders: Order[] }>('/orders');
     return data.orders ?? [];
