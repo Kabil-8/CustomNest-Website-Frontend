@@ -1,7 +1,6 @@
 // productApi.ts — Real HTTP client for Express/MongoDB product & category API.
 // All product reads and admin mutations go through here. No mock data.
-
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+import { API_BASE as BASE } from './config';
 
 // ── API shape types ────────────────────────────────────────────────────────
 
@@ -159,22 +158,31 @@ function getAuthHeaders(): Record<string, string> {
 
 // ── Core fetch helper ──────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-      ...opts.headers,
-    },
-    ...opts,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.message ?? `API error ${res.status}`);
+async function apiFetch<T>(path: string, opts: RequestInit = {}, retries = 1): Promise<T> {
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+        ...opts.headers,
+      },
+      ...opts,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message ?? `API error ${res.status}`);
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  } catch (err) {
+    const method = opts.method ? opts.method.toUpperCase() : 'GET';
+    if (retries > 0 && method === 'GET') {
+      await new Promise((r) => setTimeout(r, 2000));
+      return apiFetch<T>(path, opts, retries - 1);
+    }
+    throw err;
   }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
 }
 
 function buildQuery(params: Record<string, unknown>): string {

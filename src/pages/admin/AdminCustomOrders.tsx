@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { customOrders as customOrderApi } from '../../lib/api';
 import type { CustomOrderRequest } from '../../types';
 import { formatDate } from '../../lib/utils';
+import { BACKEND_BASE } from '../../lib/config';
 import { Skeleton } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -260,10 +261,7 @@ function getImageUrl(url?: string): string {
     return url;
   }
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
-  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000')
-    .replace(/\/api\/?$/, '')
-    .replace(/\/+$/, '');
-  return `${base}${cleanPath}`;
+  return `${BACKEND_BASE}${cleanPath}`;
 }
 
 async function downloadImage(

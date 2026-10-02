@@ -5,8 +5,7 @@
 // ---------------------------------------------------------------------------
 import type { Address, CustomOrderMessage, CustomOrderRequest, Order, OrderStatus, User } from '../types';
 
-const rawBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
-const BASE = rawBase.replace(/\/api\/?$/, '').replace(/\/+$/, '') + '/api';
+import { API_BASE as BASE } from './config';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 

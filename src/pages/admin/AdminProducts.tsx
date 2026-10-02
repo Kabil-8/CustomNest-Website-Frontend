@@ -468,7 +468,7 @@ export default function AdminProducts() {
           <AlertTriangle size={18} />
           <div>
             <p className="font-semibold">Failed to load products</p>
-            <p className="text-xs mt-0.5">{error} — Make sure the backend is running on port 5000.</p>
+            <p className="text-xs mt-0.5">{error} — Server may still be connecting or waking up.</p>
           </div>
           <button onClick={loadData} className="ml-auto btn-primary py-1.5 px-3 text-xs">Retry</button>
         </div>

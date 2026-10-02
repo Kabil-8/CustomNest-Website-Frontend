@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, SlidersHorizontal, PackageX, Loader2 } from 'lucide-react';
+import { X, SlidersHorizontal, PackageX, Loader2, RotateCcw } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { CATEGORIES } from '../data/categories';
@@ -44,7 +44,7 @@ export default function Shop() {
     limit:        48,
   }), [activeCategory, debouncedQ, sortOption, maxPrice, inStockOnly, minRating]);
 
-  const { products: allProducts, total, loading, error } = useProducts(apiParams);
+  const { products: allProducts, total, loading, error, refetch } = useProducts(apiParams);
 
   // Client-side stock + rating filters as guaranteed fallback
   const filteredProducts = useMemo(() => {
@@ -139,10 +139,17 @@ export default function Shop() {
                 <span className="text-sm font-medium">Loading products…</span>
               </div>
             ) : error ? (
-              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
-                <p className="text-sm text-rose-600 font-semibold mb-2">Failed to load products</p>
-                <p className="text-xs text-muted">{error}</p>
-                <p className="text-xs text-muted mt-1">Make sure the backend server is running on port 5000.</p>
+              <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-8 text-center max-w-md mx-auto my-8">
+                <p className="text-sm text-rose-700 font-semibold mb-1">Unable to load products</p>
+                <p className="text-xs text-muted mb-4">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white text-xs font-semibold shadow-soft hover:shadow-hover transition-all"
+                >
+                  <RotateCcw size={14} />
+                  Try Again
+                </button>
               </div>
             ) : filteredProducts.length > 0 ? (
               mobileViewMode === 'carousel' ? (
@@ -198,7 +205,7 @@ export default function Shop() {
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               className="w-full bg-white rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto shadow-lift"
             >
               <div className="flex items-center justify-between pb-4 border-b border-line mb-4">

@@ -47,8 +47,7 @@ export function getHandcraftingWindow(fromISO: string): {
     rangeText: `${minDateStr} – ${maxDateStr}`,
   };
 }
-
-const BACKEND_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000').replace(/\/api\/?$/, '');
+import { BACKEND_BASE } from './config';
 
 export function getImageUrl(path?: string | null): string {
   if (!path) return '';
