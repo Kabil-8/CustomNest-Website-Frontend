@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /account/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /custom-order-checkout/
+Disallow: /order-confirmation/
+
+Sitemap: https://cutomnest.shop/sitemap.xml
