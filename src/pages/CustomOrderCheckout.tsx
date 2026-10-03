@@ -81,7 +81,8 @@ export default function CustomOrderCheckout() {
 
   const quantity = request.quantity || 1;
   const subtotal = request.agreedPrice;
-  const shipping = 50 * quantity;
+  const isFreeShipping = subtotal > 799;
+  const shipping = isFreeShipping ? 0 : 50 * quantity;
   const total = subtotal + shipping;
   const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
 
@@ -334,8 +335,17 @@ export default function CustomOrderCheckout() {
               <span className="text-charcoal font-medium">Rs.{subtotal.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Shipping ({quantity} {quantity > 1 ? 'items' : 'item'} × Rs.50)</span>
-              <span className="text-charcoal font-medium">Rs.{shipping.toLocaleString('en-IN')}</span>
+              <span className="flex flex-col">
+                <span>Shipping ({quantity} {quantity > 1 ? 'items' : 'item'} × Rs.50)</span>
+                {isFreeShipping && (
+                  <span className="text-[0.68rem] text-emerald-600 font-semibold mt-0.5">
+                    🎉 Free shipping applied (Order above ₹799)
+                  </span>
+                )}
+              </span>
+              <span className="text-charcoal font-medium">
+                {shipping === 0 ? <span className="text-emerald-600 font-bold">FREE</span> : `Rs.${shipping.toLocaleString('en-IN')}`}
+              </span>
             </div>
             <div className="border-t border-line pt-2.5 flex justify-between font-bold text-base text-charcoal">
               <span>Total Amount</span>

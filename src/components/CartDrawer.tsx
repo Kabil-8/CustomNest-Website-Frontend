@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
+import { X, Trash2, ShoppingBag, ArrowRight, Sparkles, Truck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuthGate } from '../context/AuthGateContext';
 import { productApi } from '../lib/productApi';
@@ -64,6 +64,36 @@ export function CartDrawer() {
                 <X size={18} />
               </button>
             </div>
+
+            {/* Free Shipping Progress Alert */}
+            {items.length > 0 && (
+              <div className="px-6 py-3 bg-gradient-to-r from-rose-50 to-amber-50 border-b border-rose-100 flex flex-col gap-1.5 shrink-0">
+                {subtotal > 799 ? (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                    <Truck size={15} className="text-emerald-600" />
+                    <span>🎉 You've unlocked <strong>FREE Shipping</strong>!</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-charcoal font-medium flex items-center gap-1.5">
+                        <Truck size={14} className="text-rose-500" />
+                        <span>Shop above ₹799 for <strong>FREE Shipping</strong>!</span>
+                      </span>
+                      <span className="text-rose-600 font-bold text-[0.72rem]">
+                        Add ₹{800 - subtotal} more
+                      </span>
+                    </div>
+                    <div className="w-full bg-rose-200/50 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-rose-600 h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.round((subtotal / 800) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Drawer Body Items List */}
             <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-line/60">
@@ -195,6 +225,16 @@ export function CartDrawer() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted font-medium">Subtotal</span>
                   <span className="font-display text-xl text-rose-600">₹{subtotal}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted">
+                  <span>Shipping</span>
+                  <span className="font-medium text-charcoal">
+                    {subtotal > 799 ? (
+                      <span className="text-emerald-600 font-bold">FREE (Unlocked 🎉)</span>
+                    ) : (
+                      'Calculated at checkout'
+                    )}
+                  </span>
                 </div>
                 <p className="text-[0.7rem] text-muted">Taxes & shipping calculated at checkout.</p>
 

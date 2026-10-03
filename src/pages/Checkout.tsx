@@ -115,9 +115,13 @@ export default function Checkout() {
     return acc;
   }, null);
 
+  // Free shipping threshold: orders beyond ₹799 get 100% free shipping!
   // If order has regular products: regular shipping applies (add-ons do not increase shipping)
   // If order has ONLY add-ons: 0 shipping money!
-  const shipping = hasRegularProducts
+  const isFreeShipping = subtotal > 799;
+  const shipping = isFreeShipping
+    ? 0
+    : hasRegularProducts
     ? (maxProductShipping !== null ? maxProductShipping : globalShippingRate)
     : 0;
   const total = subtotal + shipping;
@@ -621,12 +625,22 @@ export default function Checkout() {
             <div className="flex justify-between text-muted">
               <span className="flex flex-col">
                 <span>Shipping</span>
+                {isFreeShipping && hasRegularProducts && (
+                  <span className="text-[0.68rem] text-emerald-600 font-semibold mt-0.5">
+                    🎉 Free shipping applied (Order above ₹799)
+                  </span>
+                )}
+                {!isFreeShipping && hasRegularProducts && (
+                  <span className="text-[0.65rem] text-amber-700 font-medium mt-0.5">
+                    Shop above ₹799 for free shipping (Add {formatPrice(800 - subtotal)} more)
+                  </span>
+                )}
                 {items.some(isItemAddon) && (
                   <span className="text-[0.68rem] text-emerald-600 font-semibold mt-0.5">
                     ✨ Free shipping on Add-ons
                   </span>
                 )}
-                {hasRegularProducts && activeState && (
+                {hasRegularProducts && activeState && !isFreeShipping && (
                   <span className="text-[0.65rem] text-muted/70 mt-0.5">
                     {outerState ? 'Outside Tamil Nadu' : 'Tamil Nadu'}
                   </span>

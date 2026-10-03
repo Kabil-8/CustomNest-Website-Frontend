@@ -6,7 +6,7 @@ import { listActiveColors, isProductAddon, type ApiColor } from '../lib/productA
 import { formatPrice } from '../lib/utils';
 import { Breadcrumb, EmptyState } from '../components/ui';
 
-const SHIPPING_THRESHOLD = 999;
+const SHIPPING_THRESHOLD = 799;
 const SHIPPING_FEE = 50;
 
 export default function Cart() {
@@ -21,7 +21,8 @@ export default function Cart() {
 
   const hasRegularProducts = items.some((item) => !isProductAddon(item.product));
   const hasOnlyAddons = items.length > 0 && !hasRegularProducts;
-  const shipping = items.length === 0 || hasOnlyAddons || subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+  const isFreeShipping = subtotal > SHIPPING_THRESHOLD;
+  const shipping = items.length === 0 || hasOnlyAddons || isFreeShipping ? 0 : SHIPPING_FEE;
   const total = subtotal + shipping;
 
   return (
@@ -199,13 +200,27 @@ export default function Cart() {
                       ✨ Free shipping on Add-ons
                     </span>
                   )}
+                  {isFreeShipping && hasRegularProducts && (
+                    <span className="text-[0.68rem] text-emerald-600 font-semibold">
+                      🎉 Free shipping applied (Order above ₹799)
+                    </span>
+                  )}
                 </span>
-                <span className="text-charcoal font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
+                <span className="text-charcoal font-medium">{shipping === 0 ? <span className="text-emerald-600 font-bold">Free</span> : formatPrice(shipping)}</span>
               </div>
               {shipping > 0 && (
-                <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2">
-                  Add {formatPrice(SHIPPING_THRESHOLD - subtotal)} more for free shipping.
-                </p>
+                <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200/80 rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between font-medium">
+                    <span>Shop above ₹799 for FREE shipping!</span>
+                    <span className="font-bold text-rose-600">Add {formatPrice(800 - subtotal)} more</span>
+                  </div>
+                  <div className="w-full bg-rose-200/50 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-rose-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.round((subtotal / 800) * 100))}%` }}
+                    />
+                  </div>
+                </div>
               )}
               <div className="border-t border-line pt-3 flex justify-between font-semibold text-base">
                 <span>Total</span>

@@ -9,6 +9,7 @@ import { productApi, normalizeProduct } from '../lib/productApi';
 import { orders as ordersApi, admin as adminApi } from '../lib/api';
 import type { Product } from '../types';
 import { classNames } from '../lib/utils';
+import { AnnouncementBar } from './AnnouncementBar';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -99,6 +100,7 @@ export function Navbar() {
           scrolled ? 'shadow-soft' : ''
         )}
       >
+        <AnnouncementBar />
         <div className="container-nest flex items-center justify-between h-[72px]">
           <button
             className="lg:hidden text-charcoal relative"

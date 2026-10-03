@@ -520,6 +520,23 @@ export default function ProductDetail() {
               </div>
             </div>
 
+            {/* Free shipping promotional callout */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-amber-50/60 border border-rose-200/80 flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2 font-medium text-charcoal">
+                <Truck size={16} className="text-rose-600 shrink-0" />
+                <span>
+                  {product.price > 799 ? (
+                    <span className="text-emerald-800 font-semibold">🎉 This item qualifies for <strong>FREE Shipping</strong>!</span>
+                  ) : (
+                    <span>Shop above <strong>₹799</strong> for <strong>FREE Shipping</strong> Pan-India!</span>
+                  )}
+                </span>
+              </span>
+              <span className="text-[0.68rem] font-bold text-rose-700 bg-white px-2.5 py-1 rounded-full border border-rose-100 shadow-xs shrink-0">
+                {product.price > 799 ? 'Free Delivery' : 'Free above ₹799'}
+              </span>
+            </div>
+
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-line/60 text-center">
               <div className="p-3 rounded-xl bg-white border border-line">

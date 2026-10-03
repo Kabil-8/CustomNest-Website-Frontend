@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Heart, ShieldCheck, Sparkles, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Heart, ShieldCheck, Sparkles, Quote, ChevronLeft, ChevronRight, Truck } from 'lucide-react';
 import { BlurText } from '../reactbits/BlurText';
 import { MagneticButton } from '../reactbits/MagneticButton';
 import { SpotlightCard } from '../reactbits/SpotlightCard';
@@ -9,7 +9,7 @@ import { SpotlightCard } from '../reactbits/SpotlightCard';
 const TRUST_ITEMS = [
   { icon: Heart, title: 'Handcrafted', subtitle: 'Made with Care' },
   { icon: Sparkles, title: 'Customizable', subtitle: 'Made Your Way' },
-  { icon: ShieldCheck, title: 'Thoughtful', subtitle: 'Created for Keeps' },
+  { icon: Truck, title: 'Free Shipping', subtitle: 'Orders above ₹799' },
 ];
 
 const HERO_SLIDES = [
