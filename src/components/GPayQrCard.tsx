@@ -73,19 +73,38 @@ export default function GPayQrCard({ amount, orderNumber, className = '' }: GPay
         </p>
       </div>
 
-      {/* Direct link for mobile phone users */}
-      {upiLink && (
-        <a
-          href={upiLink}
-          className="sm:hidden mt-3 inline-flex items-center justify-center w-full py-2.5 px-3 rounded-xl bg-charcoal hover:bg-black text-white text-xs font-bold transition shadow-xs"
-        >
-          Tap to Open in UPI App (₹{amount.toLocaleString('en-IN')})
-        </a>
-      )}
+      {/* Copy UPI ID button */}
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard.writeText(UPI_ID);
+          alert('UPI ID copied to clipboard: ' + UPI_ID);
+        }}
+        className="mt-3 inline-flex items-center justify-center w-full py-2 px-3 rounded-xl bg-ivory hover:bg-line/40 text-charcoal text-xs font-semibold border border-line transition shadow-2xs cursor-pointer"
+      >
+        📋 Copy UPI ID
+      </button>
+
+      {/* How to Pay Guidance Note for Mobile / Desktop */}
+      <div className="mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-200 text-left space-y-1.5 shadow-2xs">
+        <div className="flex items-center gap-1.5 text-amber-950 font-bold text-xs">
+          <span>💡</span>
+          <span>How to Pay Securely:</span>
+        </div>
+        <p className="text-[11px] text-amber-900 leading-snug">
+          • <strong>Scan from another phone</strong>, OR
+        </p>
+        <p className="text-[11px] text-amber-900 leading-snug">
+          • <strong>Take a screenshot</strong> of this QR code, open <strong>Google Pay / PhonePe / Paytm</strong>, select <em>&quot;Upload from Gallery / Scanner&quot;</em> and make the payment securely.
+        </p>
+        <p className="text-[11px] text-amber-900 leading-snug">
+          • Once done, <strong>upload the payment screenshot</strong> below to confirm your order.
+        </p>
+      </div>
 
       {/* Footer hint */}
-      <p className="text-[10px] text-muted mt-2 tracking-wide">
-        Scan with Google Pay, PhonePe, Paytm or any UPI app
+      <p className="text-[10px] text-muted mt-2.5 tracking-wide">
+        Works with Google Pay, PhonePe, Paytm or any UPI app
       </p>
     </div>
   );
