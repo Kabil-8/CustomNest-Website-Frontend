@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload, AlertCircle } from 'lucide-react';
+import { Check, Smartphone, Sparkles, Loader2, ShieldCheck, Upload, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { addresses as addressApi, customOrders as customOrderApi, orders as ordersApi } from '../lib/api';
@@ -355,9 +355,30 @@ export default function CustomOrderCheckout() {
 
       {/* UPI QR Code & Screenshot Upload Modal */}
       {showUpiQr && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border border-line">
-            <h3 className="font-display text-2xl text-charcoal mb-1">Scan & Pay</h3>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-[100] overflow-y-auto p-3 sm:p-6 overscroll-contain animate-fadeIn">
+          <div className="min-h-full flex items-center justify-center py-4">
+            <div className="relative bg-white rounded-3xl p-4 sm:p-7 max-w-md w-full text-center shadow-2xl border border-line my-auto">
+              {/* Top Close Button for quick mobile exit */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (pendingOrderId) {
+                    try {
+                      await ordersApi.remove(pendingOrderId);
+                    } catch (_) {}
+                  }
+                  setShowUpiQr(false);
+                  setPlacing(false);
+                  setPaymentScreenshot(null);
+                  setPendingOrderId(null);
+                }}
+                className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-ivory hover:bg-line text-charcoal/70 hover:text-charcoal flex items-center justify-center transition cursor-pointer z-10"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+
+              <h3 className="font-display text-xl sm:text-2xl text-charcoal mb-1">Scan & Pay</h3>
             <p className="text-sm text-muted mb-4">
               Scan with any UPI app to pay <strong className="text-charcoal font-bold text-base">Rs.{total.toLocaleString('en-IN')}</strong>
             </p>
@@ -470,6 +491,7 @@ export default function CustomOrderCheckout() {
             </div>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

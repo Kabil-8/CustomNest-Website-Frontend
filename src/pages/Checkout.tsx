@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Smartphone, Palette, AlertCircle } from 'lucide-react';
+import { Check, CreditCard, Smartphone, Palette, AlertCircle, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { addresses as addressApi, orders as ordersApi } from '../lib/api';
@@ -473,9 +473,30 @@ export default function Checkout() {
 
         {/* UPI QR Code Modal */}
         {showUpiQr && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center">
-              <h3 className="font-display text-xl mb-2">Scan & Pay</h3>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-[100] overflow-y-auto p-3 sm:p-6 overscroll-contain animate-fadeIn">
+            <div className="min-h-full flex items-center justify-center py-4">
+              <div className="relative bg-white rounded-3xl p-4 sm:p-7 max-w-sm sm:max-w-md w-full text-center shadow-2xl border border-line my-auto">
+                {/* Close Button at top right */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (pendingOrderId) {
+                      try {
+                        await ordersApi.remove(pendingOrderId);
+                      } catch (_) {}
+                    }
+                    setShowUpiQr(false);
+                    setPlacing(false);
+                    setPaymentScreenshot(null);
+                    setPendingOrderId(null);
+                  }}
+                  className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-ivory hover:bg-line text-charcoal/70 hover:text-charcoal flex items-center justify-center transition cursor-pointer z-10"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+
+                <h3 className="font-display text-xl sm:text-2xl text-charcoal mb-1">Scan & Pay</h3>
               <p className="text-sm text-muted mb-4">Scan the QR code with any UPI app to pay {formatPrice(total)}</p>
               <div className="mb-4">
                 <GPayQrCard amount={total} orderNumber={pendingOrderId || undefined} />
@@ -587,6 +608,7 @@ export default function Checkout() {
               </div>
             </div>
           </div>
+        </div>
         )}
 
         <div className="card p-6 h-fit">
