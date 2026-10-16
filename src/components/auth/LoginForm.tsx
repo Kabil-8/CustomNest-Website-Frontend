@@ -20,10 +20,6 @@ export function LoginForm() {
 
   const from = (location.state as { from?: string } | null)?.from ?? '/account';
 
-  const handleAutoFillDemo = () => {
-    setForm({ email: 'customer@thecustomnest.com', password: 'password123' });
-    show('Demo credentials populated! Click Sign In to enter.', 'info');
-  };
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -230,20 +226,6 @@ export function LoginForm() {
           </div>
         </div>
 
-        {/* Demo Credentials Pill */}
-        <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-100 flex items-center justify-between text-xs text-charcoal">
-          <div className="truncate pr-2">
-            <span className="text-rose-600 font-bold mr-1">Demo:</span>
-            <span className="font-mono text-[11px] text-muted">customer@thecustomnest.com</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleAutoFillDemo}
-            className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-all text-[11px] shrink-0"
-          >
-            Auto-fill
-          </button>
-        </div>
 
         {/* Remember me */}
         <div className="flex items-center text-xs text-muted">
